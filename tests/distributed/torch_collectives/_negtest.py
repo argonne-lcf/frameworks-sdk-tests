@@ -2,7 +2,7 @@
 the worst outcome at 120k ranks, so this corrupts one rank and asserts the whole job
 goes red. Not a platform test -- run it after touching _common.py.
 
-  NEG=misroute|nan|scale|offset|p2p TEST_DEVICE=cpu TEST_MEM_BUDGET_GB=0.02 TEST_ITERS=1 \
+  NEG=misroute|nan|scale|offset|p2p|groups TEST_DEVICE=cpu TEST_MEM_BUDGET_GB=0.02 TEST_ITERS=1 \
       TEST_CHUNK=4096 torchrun --nproc_per_node=4 _negtest.py   # must exit 1 everywhere
 
 A small TEST_CHUNK is what makes these bite: it forces buffers across many RNG chunks
@@ -58,6 +58,36 @@ elif MODE == "p2p":
             out[7] += 1.0
 
     C.run(ctx, op, lambda: C.check_regions(ctx, out, n, lambda i: (prv, ctx.rank), "message"))
+elif MODE == "groups":
+    # Sign one payload with the other subgroup's tag. This must fail, proving
+    # subgroup validation keys regions by both communicator tag and sender.
+    ep = max(
+        (
+            divisor
+            for divisor in range(1, min(6, ctx.world) + 1)
+            if ctx.world % divisor == 0 and ctx.world // divisor >= 2
+        ),
+        default=1,
+    )
+    base = ctx.rank // ep * ep
+    members = list(range(base, base + ep))
+    groups = [
+        dist.new_group(list(range(group * ep, (group + 1) * ep)))
+        for group in range(ctx.world // ep)
+    ]
+    n = C.size_for(ep + 1)
+    source = torch.empty(n, dtype=C.DTYPE, device=ctx.device)
+    output = torch.empty(n * ep, dtype=C.DTYPE, device=ctx.device)
+    C.fill(source, 1 if ctx.rank == 1 else 0, ctx.rank)
+    gather = getattr(dist, "all_gather_single", None) or dist.all_gather_into_tensor
+    C.run(
+        ctx,
+        lambda: gather(output, source, group=groups[ctx.rank // ep]),
+        lambda: C.check_regions(
+            ctx, output, n, lambda index: (0, members[index]), "tag0 slot"
+        ),
+        output.zero_,
+    )
 else:
     n = C.size_for(2 * ctx.world)
     inp = torch.empty(n * ctx.world, dtype=C.DTYPE, device=ctx.device)
