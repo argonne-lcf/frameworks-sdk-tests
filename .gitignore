@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+*.swp
+
+results/
+**/results/
+**/*_trace/
+**/*_traces/
+**/data/
+*.pth
+*.pt
+
+tests/workloads/jax_qmc/nuclei_*.log
+tests/workloads/jax_qmc/nuclei_*.model
+tests/workloads/cosmictagger/tensorboard/
