@@ -1,0 +1,598 @@
+{
+  "schema_version": 1,
+  "default_suites": [
+    "smoke"
+  ],
+  "defaults": {
+    "timeout": 300,
+    "env": {
+      "PYTHONUNBUFFERED": "1",
+      "ZE_FLAT_DEVICE_HIERARCHY": "FLAT"
+    },
+    "required_commands": [],
+    "required_python_modules": [],
+    "min_xpus": 0,
+    "min_nodes": 0
+  },
+  "tests": [
+    {
+      "id": "imports-core",
+      "suite": "smoke",
+      "tags": ["default", "packages", "fast"],
+      "command": ["python", "tests/smoke/package_imports.py"]
+    },
+    {
+      "id": "pytorch-xpu",
+      "suite": "smoke",
+      "tags": ["default", "pytorch", "xpu", "fast"],
+      "command": ["python", "tests/smoke/pytorch_xpu.py"],
+      "min_xpus": 1
+    },
+    {
+      "id": "mpi4py-single",
+      "suite": "smoke",
+      "tags": ["default", "mpi", "fast"],
+      "command": ["python", "tests/smoke/mpi4py_info.py"]
+    },
+    {
+      "id": "dpctl-devices",
+      "suite": "smoke",
+      "tags": ["default", "dpctl", "xpu", "fast"],
+      "command": ["python", "tests/smoke/dpctl_devices.py"],
+      "min_xpus": 1
+    },
+    {
+      "id": "dpnp-array",
+      "suite": "smoke",
+      "tags": ["default", "dpnp", "xpu", "fast"],
+      "command": ["python", "tests/smoke/dpnp_array.py"],
+      "min_xpus": 1
+    },
+    {
+      "id": "dpnp-torch-dlpack",
+      "suite": "smoke",
+      "tags": ["default", "dpnp", "pytorch", "xpu", "fast"],
+      "command": ["python", "tests/smoke/dpnp_torch_dlpack.py"],
+      "min_xpus": 1
+    },
+
+    {
+      "id": "imports-science",
+      "suite": "optional-imports",
+      "tags": ["packages", "science"],
+      "command": [
+        "python",
+        "tests/smoke/package_imports.py",
+        "numpy",
+        "scipy",
+        "h5py",
+        "sklearn",
+        "jax",
+        "jaxlib",
+        "tensorflow"
+      ]
+    },
+    {
+      "id": "imports-llm",
+      "suite": "optional-imports",
+      "tags": ["packages", "llm"],
+      "command": [
+        "python",
+        "tests/smoke/package_imports.py",
+        "deepspeed",
+        "transformers",
+        "triton",
+        "vllm",
+        "vllm_xpu_kernels"
+      ]
+    },
+    {
+      "id": "imports-comms",
+      "suite": "optional-imports",
+      "tags": ["packages", "distributed"],
+      "command": [
+        "python",
+        "tests/smoke/package_imports.py",
+        "oneccl_bindings_for_pytorch",
+        "torchcomms"
+      ]
+    },
+    {
+      "id": "imports-intel-extension",
+      "suite": "optional-imports",
+      "tags": ["packages", "pytorch", "ipex"],
+      "command": [
+        "python",
+        "tests/smoke/package_imports.py",
+        "intel_extension_for_pytorch"
+      ]
+    },
+
+    {
+      "id": "collectives-cpu",
+      "suite": "harness",
+      "tags": ["cpu", "distributed", "self-test"],
+      "command": ["bash", "tests/distributed/torch_collectives/run_local.sh"],
+      "required_commands": ["torchrun"],
+      "timeout": 900
+    },
+    {
+      "id": "collectives-pals-env-cpu",
+      "suite": "harness",
+      "tags": ["cpu", "distributed", "pals", "self-test"],
+      "command": ["bash", "tests/distributed/torch_collectives/run_local.sh", "pals"],
+      "timeout": 900
+    },
+    {
+      "id": "collectives-validator-negative",
+      "suite": "harness",
+      "tags": ["cpu", "distributed", "negative", "self-test"],
+      "command": ["bash", "tests/distributed/torch_collectives/run_local.sh", "neg"],
+      "required_commands": ["torchrun"],
+      "timeout": 600
+    },
+
+    {
+      "id": "torch-allreduce",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_allreduce.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-allgather",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_allgather.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-alltoall",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_alltoall.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-alltoall-uneven",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective", "uneven"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_alltoall_uneven.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-reduce-scatter",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_reduce_scatter.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-overlap-allreduce",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "overlap"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_overlap.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_OVERLAP_COLL": "all_reduce", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-overlap-allgather",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "overlap"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_overlap.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_OVERLAP_COLL": "all_gather", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-p2p-ring",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "p2p"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_p2p.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_P2P": "ring", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-p2p-ring-async",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "p2p"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_p2p.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_P2P": "ring_async", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-p2p-ring-async-symmetric",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "p2p", "deadlock-regression"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_p2p.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_P2P": "ring_async_sym", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-p2p-ring-batch",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "p2p"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_p2p.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_P2P": "ring_batch", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-p2p-batch",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "p2p"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_p2p.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_P2P": "batch", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "torch-streams",
+      "suite": "distributed",
+      "tags": ["pytorch", "xpu", "streams", "overlap"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/torch_collectives/test_torch_streams.py"],
+      "required_commands": ["torchrun"],
+      "env": {"TEST_COPY_GB": "1", "TEST_GEMM_M": "2048", "TEST_GEMM_REPS": "20", "TEST_TIMEOUT": "120"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "mpi4py-xpu-allreduce",
+      "suite": "distributed",
+      "tags": ["mpi4py", "mpi", "xpu", "allreduce"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "tests/distributed/mpi4py_xpu_allreduce.py"],
+      "required_commands": ["mpiexec"],
+      "required_python_modules": ["mpi4py", "torch"],
+      "min_xpus": 2,
+      "timeout": 300
+    },
+
+    {
+      "id": "regression-sdpa-gqa-stride",
+      "suite": "regression",
+      "tags": ["pytorch", "compile", "sdpa", "xpu"],
+      "command": ["python", "tests/regressions/sdpa/repro_sdpa_3.py"],
+      "min_xpus": 1,
+      "timeout": 1200
+    },
+    {
+      "id": "regression-sdpa-non-gqa-baseline",
+      "suite": "regression",
+      "tags": ["pytorch", "compile", "sdpa", "baseline", "xpu"],
+      "command": ["python", "tests/regressions/sdpa/repro_sdpa_2.py"],
+      "min_xpus": 1,
+      "timeout": 1200
+    },
+    {
+      "id": "regression-sdpa-tp-fsdp",
+      "suite": "regression",
+      "tags": ["pytorch", "compile", "sdpa", "distributed", "slow", "xpu"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=12", "tests/regressions/sdpa/repro_sdpa_flash_backward_stride.py"],
+      "env": {"CCL_ATL_TRANSPORT": "ofi", "CCL_PROCESS_LAUNCHER": "none", "EZPZ_REPRO_AC": "1", "EZPZ_REPRO_BUDGET": "0.5", "TORCHINDUCTOR_COMPILE_THREADS": "1"},
+      "required_commands": ["torchrun"],
+      "min_xpus": 12,
+      "timeout": 3600
+    },
+    {
+      "id": "regression-gamma-large-sample",
+      "suite": "regression",
+      "tags": ["pytorch", "random", "xpu", "slow"],
+      "command": ["python", "tests/regressions/gamma_distribution.py"],
+      "min_xpus": 1,
+      "timeout": 900
+    },
+    {
+      "id": "regression-deepspeed-fused-adam-jit",
+      "suite": "regression",
+      "tags": ["deepspeed", "jit", "compiler", "xpu"],
+      "command": ["python", "tests/regressions/deepspeed_fused_adam_jit.py"],
+      "required_commands": ["ninja"],
+      "required_python_modules": ["deepspeed"],
+      "min_xpus": 1,
+      "timeout": 1800
+    },
+    {
+      "id": "regression-ipex-pybind11-jit",
+      "suite": "regression",
+      "tags": ["ipex", "jit", "compiler", "xpu"],
+      "command": ["python", "tests/regressions/ipex_pybind11/repro_ipex_pybind11.py"],
+      "required_commands": ["ninja"],
+      "required_python_modules": ["intel_extension_for_pytorch"],
+      "min_xpus": 1,
+      "timeout": 1800
+    },
+    {
+      "id": "regression-vllm-model-inspection",
+      "suite": "regression",
+      "tags": ["vllm", "subprocess", "cache"],
+      "command": ["python", "tests/regressions/vllm_model_inspection/repro_vllm_inspect_llama.py"],
+      "required_python_modules": ["vllm"],
+      "timeout": 600
+    },
+    {
+      "id": "regression-xccl-allgather-empty-cache",
+      "suite": "regression",
+      "tags": ["pytorch", "xccl", "memory", "distributed", "slow", "xpu"],
+      "command": ["bash", "tests/regressions/torch_allgather_memleak/run_repros_torchrun.sh"],
+      "required_commands": ["torchrun"],
+      "min_xpus": 2,
+      "timeout": 2400
+    },
+
+    {
+      "id": "workload-checkpoint-io",
+      "suite": "workload",
+      "tags": ["mpi", "filesystem", "checkpoint"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "checkpoint_io.py"],
+      "required_commands": ["mpiexec"],
+      "cwd": "tests/workloads/distributed_models",
+      "required_python_modules": ["mpi4py", "torch"],
+      "timeout": 600
+    },
+    {
+      "id": "workload-dtensor",
+      "suite": "workload",
+      "tags": ["pytorch", "dtensor", "distributed", "xpu"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "dtensor.py"],
+      "required_commands": ["mpiexec"],
+      "cwd": "tests/workloads/distributed_models",
+      "required_python_modules": ["mpi4py", "torch"],
+      "min_xpus": 2,
+      "timeout": 900
+    },
+    {
+      "id": "workload-dtensor-2d-redistribute",
+      "suite": "workload",
+      "tags": ["pytorch", "dtensor", "distributed", "2d-mesh", "xpu"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "dtensor_2d.py"],
+      "cwd": "tests/workloads/distributed_models",
+      "required_commands": ["mpiexec"],
+      "required_python_modules": ["mpi4py", "torch"],
+      "min_xpus": 2,
+      "timeout": 900
+    },
+    {
+      "id": "workload-mnist-ddp",
+      "suite": "workload",
+      "tags": ["pytorch", "torchvision", "ddp", "training", "xpu"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "mnist.py"],
+      "required_commands": ["mpiexec"],
+      "cwd": "tests/workloads/distributed_models",
+      "required_python_modules": ["mpi4py", "torchvision"],
+      "min_xpus": 2,
+      "timeout": 1200
+    },
+    {
+      "id": "workload-resnet50-ddp",
+      "suite": "workload",
+      "tags": ["pytorch", "torchvision", "ddp", "training", "slow", "xpu"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "resnet50.py"],
+      "required_commands": ["mpiexec"],
+      "cwd": "tests/workloads/distributed_models",
+      "required_python_modules": ["mpi4py", "torchvision"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
+      "id": "workload-resnet50-fsdp",
+      "suite": "workload",
+      "tags": ["pytorch", "torchvision", "fsdp", "training", "slow", "xpu"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "resnet50.py", "--fsdp"],
+      "required_commands": ["mpiexec"],
+      "cwd": "tests/workloads/distributed_models",
+      "required_python_modules": ["mpi4py", "torchvision"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
+      "id": "workload-transformer-ddp",
+      "suite": "workload",
+      "tags": ["pytorch", "transformer", "ddp", "training", "xpu"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "transformer_ddp.py"],
+      "required_commands": ["mpiexec"],
+      "cwd": "tests/workloads/distributed_models",
+      "required_python_modules": ["mpi4py", "torch"],
+      "min_xpus": 2,
+      "timeout": 1200
+    },
+    {
+      "id": "workload-minigpt-deepspeed",
+      "suite": "workload",
+      "tags": ["pytorch", "deepspeed", "transformer", "training", "xpu"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "minigpt_deepspeed.py"],
+      "required_commands": ["mpiexec"],
+      "cwd": "tests/workloads/distributed_models",
+      "required_python_modules": ["deepspeed", "mpi4py", "transformers"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
+      "id": "workload-sequence-parallelism",
+      "suite": "workload",
+      "tags": ["pytorch", "mpi", "sequence-parallel", "collective", "xpu"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "tests/workloads/ml_communications/sequence_parallelism_compute.py", "--device", "xpu"],
+      "required_commands": ["mpiexec"],
+      "required_python_modules": ["mpi4py", "torch"],
+      "min_xpus": 2,
+      "timeout": 900
+    },
+    {
+      "id": "workload-torchcomms-xccl",
+      "suite": "workload",
+      "tags": ["torchcomms", "xccl", "xpu"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/torchcomms/xccl_smoke.py"],
+      "required_commands": ["torchrun"],
+      "required_python_modules": ["torchcomms"],
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "workload-moe-reference-pytest",
+      "suite": "workload",
+      "tags": ["pytorch", "moe", "pytest", "reference", "cpu"],
+      "command": ["python", "-m", "pytest", "-q", "tests", "--ignore=tests/test_triton_gpu.py", "--ignore=tests/test_triton_required.py"],
+      "cwd": "tests/workloads/moe",
+      "required_python_modules": ["pytest", "torch"],
+      "timeout": 2400
+    },
+    {
+      "id": "workload-moe-triton-xpu-pytest",
+      "suite": "workload",
+      "tags": ["pytorch", "triton", "moe", "pytest", "xpu"],
+      "command": ["python", "-m", "pytest", "-q", "tests/test_triton_required.py", "tests/test_triton_gpu.py"],
+      "cwd": "tests/workloads/moe",
+      "required_python_modules": ["pytest", "torch", "triton"],
+      "min_xpus": 1,
+      "timeout": 2400
+    },
+    {
+      "id": "workload-moe-train-xpu",
+      "suite": "workload",
+      "tags": ["pytorch", "moe", "training", "xpu"],
+      "command": ["python", "train.py", "--arch", "k3", "--steps", "1", "--batch-size", "1", "--seq-len", "32", "--vocab", "256", "--dim", "64", "--layers", "2", "--experts", "4", "--top-k", "2", "--device", "xpu", "--log-every", "1"],
+      "cwd": "tests/workloads/moe",
+      "required_python_modules": ["torch"],
+      "min_xpus": 1,
+      "timeout": 600
+    },
+    {
+      "id": "workload-cosmictagger-io-synthetic",
+      "suite": "workload",
+      "tags": ["cosmictagger", "io", "synthetic", "pytest", "application"],
+      "command": ["python", "-m", "pytest", "-q", "tests/io/test_io.py", "-k", "True"],
+      "cwd": "tests/workloads/cosmictagger",
+      "required_python_modules": ["pytest"],
+      "timeout": 600
+    },
+    {
+      "id": "workload-cosmictagger-io-larcv",
+      "suite": "workload",
+      "tags": ["cosmictagger", "io", "larcv", "pytest", "application"],
+      "command": ["python", "-m", "pytest", "-q", "tests/io/test_io.py", "-k", "False"],
+      "cwd": "tests/workloads/cosmictagger",
+      "required_python_modules": ["larcv", "pytest"],
+      "timeout": 600
+    },
+    {
+      "id": "workload-cosmictagger-torch-synthetic",
+      "suite": "workload",
+      "tags": ["cosmictagger", "pytorch", "training", "synthetic", "pytest", "application"],
+      "command": ["python", "-m", "pytest", "-q", "tests/torch/test_torch_training_and_inference.py", "-k", "True"],
+      "cwd": "tests/workloads/cosmictagger",
+      "required_python_modules": ["pytest", "tensorboardX", "torch"],
+      "timeout": 1200
+    },
+    {
+      "id": "workload-cosmictagger-torch-larcv",
+      "suite": "workload",
+      "tags": ["cosmictagger", "pytorch", "training", "larcv", "pytest", "application"],
+      "command": ["python", "-m", "pytest", "-q", "tests/torch/test_torch_training_and_inference.py", "-k", "False"],
+      "cwd": "tests/workloads/cosmictagger",
+      "required_python_modules": ["larcv", "pytest", "tensorboardX", "torch"],
+      "timeout": 1200
+    },
+    {
+      "id": "workload-cosmictagger-tensorflow-synthetic",
+      "suite": "workload",
+      "tags": ["cosmictagger", "tensorflow", "training", "synthetic", "cpu", "pytest", "application"],
+      "command": ["python", "-m", "pytest", "-q", "tests/tensorflow/test_tf_training_and_inference.py", "-k", "True"],
+      "cwd": "tests/workloads/cosmictagger",
+      "required_python_modules": ["pytest", "tensorflow"],
+      "timeout": 1200
+    },
+    {
+      "id": "workload-cosmictagger-tensorflow-larcv",
+      "suite": "workload",
+      "tags": ["cosmictagger", "tensorflow", "training", "larcv", "cpu", "pytest", "application"],
+      "command": ["python", "-m", "pytest", "-q", "tests/tensorflow/test_tf_training_and_inference.py", "-k", "False"],
+      "cwd": "tests/workloads/cosmictagger",
+      "required_python_modules": ["larcv", "pytest", "tensorflow"],
+      "timeout": 1200
+    },
+    {
+      "id": "workload-cosmictagger-network-parity",
+      "suite": "workload",
+      "tags": ["cosmictagger", "pytorch", "tensorflow", "network", "pytest", "application"],
+      "command": ["python", "-m", "pytest", "-q", "tests/network_creation/test_network_creation.py", "--limit", "8"],
+      "cwd": "tests/workloads/cosmictagger",
+      "required_python_modules": ["pytest", "tensorflow", "torch"],
+      "timeout": 1200
+    },
+
+    {
+      "id": "benchmark-torchcomms-perf",
+      "suite": "benchmark",
+      "tags": ["torchcomms", "xccl", "xpu", "collective", "performance", "bounded"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/torchcomms/perf/collective_perf_test.py", "all_reduce", "--warmup", "1", "--iters", "3", "--min-size", "4", "--max-size", "1024"],
+      "required_commands": ["torchrun"],
+      "required_python_modules": ["torch", "torchcomms"],
+      "env": {"TEST_DEVICE": "xpu", "TEST_BACKEND": "xccl", "TEST_FULL_SWEEP": "0"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "benchmark-c10d-perf",
+      "suite": "benchmark",
+      "tags": ["c10d", "xccl", "xpu", "collective", "performance", "bounded"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/torchcomms/perf/collective_perf_test.py", "all_reduce", "--c10d", "--warmup", "1", "--iters", "3", "--min-size", "4", "--max-size", "1024"],
+      "required_commands": ["torchrun"],
+      "required_python_modules": ["torch", "torchcomms"],
+      "env": {"TEST_DEVICE": "xpu", "TEST_BACKEND": "xccl", "TEST_FULL_SWEEP": "0"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "benchmark-c10d-torchcomms-perf",
+      "suite": "benchmark",
+      "tags": ["c10d", "torchcomms", "xccl", "xpu", "collective", "performance", "bounded"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/torchcomms/perf/collective_perf_test.py", "all_reduce", "--c10d-torchcomms", "--warmup", "1", "--iters", "3", "--min-size", "4", "--max-size", "1024"],
+      "required_commands": ["torchrun"],
+      "required_python_modules": ["torch", "torchcomms"],
+      "env": {"TEST_DEVICE": "xpu", "TEST_BACKEND": "xccl", "TEST_FULL_SWEEP": "0"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "benchmark-gemm-torch",
+      "suite": "benchmark",
+      "tags": ["pytorch", "gemm", "performance", "slow", "xpu"],
+      "command": ["python", "tests/workloads/gemm/torch_matmul_2.py"],
+      "min_xpus": 1,
+      "timeout": 2400
+    },
+    {
+      "id": "benchmark-gemm-eleutherai",
+      "suite": "benchmark",
+      "tags": ["pytorch", "gemm", "performance", "slow", "xpu"],
+      "command": ["python", "tests/workloads/gemm/eleutherai_matmul_2.py"],
+      "min_xpus": 1,
+      "timeout": 3600
+    }
+  ]
+}

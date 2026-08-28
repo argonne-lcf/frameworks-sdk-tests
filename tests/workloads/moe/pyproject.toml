@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "latentmoe"
+version = "0.1.0"
+description = "Standalone Mixture-of-Experts example capturing DeepSeek-V4-Pro and Kimi-K3 innovations. PyTorch + Triton only; runs on NVIDIA, Intel XPU, and Grace-Hopper."
+requires-python = ">=3.10"
+dependencies = ["torch>=2.4"]
+
+[project.optional-dependencies]
+# Triton ships with CUDA torch wheels on Linux/NVIDIA; on Intel GPUs install
+# the XPU torch build (which bundles intel's triton backend). Never available on macOS.
+triton = ["triton>=3.0"]
+test = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["latentmoe*"]
