@@ -14,7 +14,8 @@ and therefore is not launched by a normal suite selection.
   environment variables, and with expected fault injection.
 - `distributed` contains correctness-aware all-reduce, all-gather,
   all-to-all, uneven all-to-all, reduce-scatter, collective/compute overlap,
-  five P2P modes, independent-stream overlap, and direct GPU-buffer
+  five P2P modes, independent-stream overlap, five expert/pipeline/disjoint/
+  overlapping subgroup communicator modes, and direct GPU-buffer
   `mpi4py.Allreduce` validation.
 - `regression` contains the GQA SDPA compiler crash, its baseline, the full
   TP/FSDP SDPA reproducer, Gamma sampling, DeepSpeed and IPEX JIT builds, vLLM

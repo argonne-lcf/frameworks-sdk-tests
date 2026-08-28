@@ -8,7 +8,7 @@ were changed.
 
 | Source | Provenance | What was retained and normalized |
 | --- | --- | --- |
-| `fw_sdk_main/frameworks-sdk` | branch `users/khalid/test-suite-pytorch`, commit `f72aa6e` | The current shared validator and eight PyTorch collective payloads. Repeated PBS, affinity, and vLLM helper copies were replaced by one PBS launcher and one affinity helper. |
+| `fw_sdk_main/frameworks-sdk` | branch `users/khalid/test-suite-pytorch`, commit `f72aa6e`, plus subgroup payload and validator changes from `51257f3` | The current shared validator and nine PyTorch collective payloads. Repeated PBS, affinity, and vLLM helper copies were replaced by one PBS launcher and one affinity helper. |
 | `huihuo_testing_frameworks/test_frameworks` | branch `users/khalid/cicd`, commit `ea2adce`, dirty working tree | Unique 1-D/2-D DTensor, GPU-aware mpi4py, checkpoint, and model-training intent. Byte-identical root/nested copies and obsolete collective implementations were removed. Workloads were bounded, made synthetic by default, and given correctness checks. |
 | `deepspeed_jit_test`, `dpctl_ray_bug`, `dpnp_test`, `gamma_dist_bug`, `sdpa_stride_bug`, `jaehuyk_ddp_test` | current filesystem versions | Focused test intent was extracted. Personal environment wrappers were removed; missing hardware is no longer treated as success; output-only examples now assert results. |
 | `ipex_jit_compile_bug/frameworks-sdk` | stale nested SDK checkout | Only the canonical, newer IPEX pybind11 reproducer from `fw_sdk_main` was retained. Generated copies of installed IPEX source were excluded. |

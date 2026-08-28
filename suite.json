@@ -253,6 +253,56 @@
       "timeout": 600
     },
     {
+      "id": "torch-subgroups-ep",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective", "subgroups", "expert-parallel"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=4", "tests/distributed/torch_collectives/test_torch_subgroups.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_GROUPS": "ep", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 4,
+      "timeout": 600
+    },
+    {
+      "id": "torch-subgroups-pp",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective", "subgroups", "pipeline-parallel"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=4", "tests/distributed/torch_collectives/test_torch_subgroups.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_GROUPS": "pp", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 4,
+      "timeout": 600
+    },
+    {
+      "id": "torch-subgroups-sequential",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective", "subgroups", "ordering"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=4", "tests/distributed/torch_collectives/test_torch_subgroups.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_GROUPS": "seq", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 4,
+      "timeout": 600
+    },
+    {
+      "id": "torch-subgroups-disjoint",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective", "subgroups", "concurrency"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=4", "tests/distributed/torch_collectives/test_torch_subgroups.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_GROUP_CALIB": "4", "TEST_GROUPS": "disjoint", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 4,
+      "timeout": 600
+    },
+    {
+      "id": "torch-subgroups-overlap",
+      "suite": "distributed",
+      "tags": ["pytorch", "xccl", "xpu", "collective", "subgroups", "overlap", "ordering"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=4", "tests/distributed/torch_collectives/test_torch_subgroups.py"],
+      "required_commands": ["torchrun"],
+      "env": {"CCL_ATL_SYNC_COLL": "0", "CCL_OP_SYNC": "0", "TEST_GROUPS": "overlap", "TEST_ITERS": "3", "TEST_MEM_BUDGET_GB": "0.5", "TEST_TIMEOUT": "120"},
+      "min_xpus": 4,
+      "timeout": 600
+    },
+    {
       "id": "torch-streams",
       "suite": "distributed",
       "tags": ["pytorch", "xpu", "streams", "overlap"],

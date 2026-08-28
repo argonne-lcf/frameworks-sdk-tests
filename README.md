@@ -58,7 +58,8 @@ Suites are intentionally separated by cost and purpose:
 - `smoke`: default package and single-XPU acceptance checks.
 - `optional-imports`: science, LLM, communication, and Intel/IPEX package groups.
 - `harness`: CPU/gloo and fault-injection checks for the collective validator.
-- `distributed`: two-XPU PyTorch/XCCL collectives plus direct GPU-aware MPI.
+- `distributed`: two- and four-XPU PyTorch/XCCL collectives, including
+  subgroup communicator layouts, plus direct GPU-aware MPI.
 - `regression`: SDPA, JIT, vLLM, Gamma sampling, and XCCL memory regressions.
 - `workload`: bounded DDP/FSDP/1-D and 2-D DTensor, DeepSpeed, TorchComms,
   sequence parallelism, MoE, and split CosmicTagger application tests.
@@ -100,7 +101,9 @@ PROJECT=datascience QUEUE=workq NNODES=2 \
 ```
 
 `TEST_CASE` may be `allreduce`, `allgather`, `alltoall`,
-`alltoall_uneven`, `reduce_scatter`, `overlap`, `p2p`, or `streams`.
+`alltoall_uneven`, `reduce_scatter`, `overlap`, `p2p`, `streams`, or
+`subgroups`. For `subgroups`, `TEST_GROUPS` may be `ep`, `pp`, `seq`,
+`disjoint`, or `overlap`.
 `NRANKS_PER_NODE`, `XPUS_PER_NODE`, `WALLTIME`, `TEST_MEM_BUDGET_GB`,
 `TEST_ITERS`, and the operation-specific `TEST_*` variables are overrideable.
 The script contains no personal or `/lus/.../testing` paths.

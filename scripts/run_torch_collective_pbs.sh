@@ -9,7 +9,7 @@
 #       scripts/run_torch_collective_pbs.sh
 #
 # TEST_CASE is one of allreduce, allgather, alltoall, alltoall_uneven,
-# reduce_scatter, overlap, p2p, or streams. All TEST_* settings are inherited.
+# reduce_scatter, overlap, p2p, streams, or subgroups. All TEST_* settings are inherited.
 set -euo pipefail
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
@@ -47,7 +47,7 @@ PYTHON=${PYTHON:-python}
 XPUS_PER_NODE=${XPUS_PER_NODE:-12}
 
 case "${TEST_CASE}" in
-allreduce|allgather|alltoall|alltoall_uneven|reduce_scatter|overlap|p2p)
+allreduce|allgather|alltoall|alltoall_uneven|reduce_scatter|overlap|p2p|subgroups)
     NNODES=${NNODES:-2}
     NRANKS_PER_NODE=${NRANKS_PER_NODE:-12}
     WALLTIME=${WALLTIME:-00:20:00}
@@ -177,6 +177,10 @@ p2p)
     export TEST_P2P=${TEST_P2P:-ring}
     # Cross the fabric by default instead of keeping most adjacent hops on Xe Link.
     export TEST_P2P_STRIDE=${TEST_P2P_STRIDE:-${NRANKS_PER_NODE}}
+    ;;
+subgroups)
+    export TEST_GROUPS=${TEST_GROUPS:-ep}
+    export TEST_GROUP_CALIB=${TEST_GROUP_CALIB:-8}
     ;;
 esac
 
