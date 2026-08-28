@@ -1,0 +1,7 @@
+numpy
+h5py
+larcv
+tensorflow>=2.0.0
+torch
+Pillow # Needed for tensorboardX
+tensorboardX
