@@ -119,13 +119,11 @@ tests/smoke/                fast module acceptance checks
 tests/distributed/          scalable correctness-aware collective tests
 tests/regressions/          focused known-bug reproducers
 tests/workloads/            model/application tests and opt-in benchmarks
-docs/                       migration record and manual-test catalog
+docs/                       manual-test catalog
 ```
 
 See [docs/test-catalog.md](docs/test-catalog.md) for tests that need manual
-arguments or specialized launchers, and
-[docs/source-inventory.md](docs/source-inventory.md) for provenance and the
-explicit exclusion list.
+arguments or specialized launchers.
 
 ## Adding a test
 
