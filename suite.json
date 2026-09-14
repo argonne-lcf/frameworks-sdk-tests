@@ -386,6 +386,15 @@
       "timeout": 600
     },
     {
+      "id": "regression-vllm-xpu-kernels-grouped-gemm",
+      "suite": "regression",
+      "tags": ["vllm", "grouped-gemm", "sycl", "compiler", "xpu"],
+      "command": ["bash", "tests/regressions/vllm_xpu_kernels_grouped_gemm/run_repro.sh"],
+      "required_commands": ["icpx", "git", "curl", "tar"],
+      "min_xpus": 1,
+      "timeout": 3600
+    },
+    {
       "id": "regression-xccl-allgather-empty-cache",
       "suite": "regression",
       "tags": ["pytorch", "xccl", "memory", "distributed", "slow", "xpu"],
