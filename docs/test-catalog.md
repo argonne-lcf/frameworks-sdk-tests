@@ -19,7 +19,8 @@ and therefore is not launched by a normal suite selection.
   `mpi4py.Allreduce` validation.
 - `regression` contains the GQA SDPA compiler crash, its baseline, the full
   TP/FSDP SDPA reproducer, Gamma sampling, DeepSpeed and IPEX JIT builds, vLLM
-  registry inspection, and the XCCL `empty_cache` memory leak.
+  registry inspection, the XE2 grouped-GEMM D-store reproducer, and the XCCL
+  `empty_cache` memory leak.
 - `workload` contains checkpoint I/O, 1-D and 2-D DTensor redistribution,
   bounded MNIST/ResNet/Transformer training, DeepSpeed miniGPT, TorchComms,
   XPU sequence parallelism, separate MoE reference/Triton pytest gates, a
