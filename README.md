@@ -65,8 +65,8 @@ Suites are intentionally separated by cost and purpose:
 - `regression`: SDPA, JIT, vLLM, Gamma sampling, and XCCL memory regressions.
 - `workload`: bounded DDP/FSDP/1-D and 2-D DTensor, DeepSpeed, TorchComms,
   sequence parallelism, MoE, and split CosmicTagger application tests.
-- `benchmark`: opt-in bounded TorchComms/c10d collectives and GEMM performance
-  experiments.
+- `benchmark`: opt-in bounded TorchComms/c10d collectives, GEMM performance
+  experiments, and `ezpz benchmark` training runs (s/m/l model ladder).
 
 Examples:
 

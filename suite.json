@@ -696,6 +696,47 @@
       "command": ["python", "tests/workloads/gemm/eleutherai_matmul_2.py"],
       "min_xpus": 1,
       "timeout": 3600
+    },
+
+    {
+      "id": "benchmark-ezpz-test-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "ddp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "test", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
+      "id": "benchmark-ezpz-test-m",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "ddp", "performance", "bounded", "slow", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "test", "m"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 2700
+    },
+    {
+      "id": "benchmark-ezpz-test-l",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "ddp", "performance", "bounded", "slow", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "test", "l"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 3600
+    },
+    {
+      "id": "benchmark-ezpz-vit-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "vit", "fsdp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "vit", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 1800
     }
   ]
 }

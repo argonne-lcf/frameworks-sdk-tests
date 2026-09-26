@@ -27,7 +27,66 @@ and therefore is not launched by a normal suite selection.
   XPU sequence parallelism, separate MoE reference/Triton pytest gates, a
   bounded MoE training probe, and dependency-split CosmicTagger pytest cases.
 - `benchmark` contains bounded two-rank all-reduce measurements for the
-  TorchComms, c10d, and c10d-through-TorchComms adapters, plus GEMM sweeps.
+  TorchComms, c10d, and c10d-through-TorchComms adapters, GEMM sweeps, and
+  bounded `ezpz benchmark` training runs across the s/m/l model ladder.
+
+### ezpz benchmark
+
+`ezpz benchmark` runs ezpz's own example suite and writes `timings.csv`,
+`env.json`, and `report.md` per run, exiting nonzero if any example fails —
+so the harness gets pass/fail and a machine-readable measurement for free.
+The registered cases go through `tests/workloads/ezpz/run_benchmark.sh`, which
+exists for two reasons the manifest cannot express.
+
+**Artifact routing.** Test commands are argv arrays and are never templated,
+so the per-case artifact path can only be read from
+`FRAMEWORKS_TEST_ARTIFACT_DIR` at runtime. Without the wrapper, `ezpz
+benchmark` writes into `./outputs/` in the working tree.
+
+**Refusing unbounded examples.** `ezpz benchmark` forwards only `--model`, and
+the examples do not share a bounding flag:
+
+| example | bound | registered |
+|---|---|---|
+| `test` | `--train-iters` (preset-driven, 400 at s/m/l) | yes |
+| `vit` | `--max-iters` (default 224) | yes |
+| `fsdp` | `--epochs` (default 10) | no |
+| `fsdp_tp` | `--epochs` (default 5, over full imdb) | no |
+| `diffusion` | no iteration cap at all | no |
+
+The epoch-based examples are dataset-scaled rather than step-capped, so their
+runtime is set by the corpus, not by anything `ezpz benchmark` forwards.
+Measured on Aurora at `--model s` with 12 ranks: `test` finished in 50s and
+`fsdp` in 44s, while `fsdp_tp` was still running when a 30-minute job wall
+killed it — producing no timing row at all. The wrapper therefore refuses
+`fsdp`, `fsdp_tp`, and `diffusion` with exit 2 and a pointer to running them
+in a dedicated job with an explicit budget:
+
+```bash
+ezpz launch -- python3 -m ezpz.examples.fsdp_tp --model s --epochs 1
+```
+
+It also treats "exit 0 but no `timings.csv`" as a failure, so an example that
+silently produces no measurement cannot pass.
+
+`hf` and `hf_trainer` are intentionally unregistered: they require the gated
+`meta-llama/Llama-3.2-1B` and report to wandb, which does not belong in an SDK
+acceptance run.
+
+The `s`/`m`/`l` ladder is roughly 107M/248M/449M parameters at 400 iterations
+(`test`). Measured on one Aurora node (12 ranks, `frameworks/2025.3.1`, ezpz
+0.27.6): `test s` 48s / 107,147,274 params, `test m` 43s / 247,803,914 params,
+`vit s` 46s. `m` is not slower than `s` because its batch size halves
+(64 → 32) as the model grows. `benchmark-ezpz-test-s` and `-vit-s` are the
+cheap standard cases; `-test-m` and `-test-l` carry the `slow` tag. Note the
+whole `benchmark` suite is opt-in and never runs by default.
+
+A version caveat worth repeating here: installing ezpz with `--no-deps` leaves
+its pins unenforced, and a stray `plotext` 6.x breaks **every** example with
+`AttributeError: module 'plotext' has no attribute 'plot_size'` (ezpz pins
+`plotext>=5,<6`; 6.0.0 is a rewrite that drops that API). The cases declare
+`plotext` and `torchinfo` so a broken environment skips rather than reporting
+a spurious benchmark failure.
 
 ## Retained manual sources
 
