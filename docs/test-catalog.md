@@ -8,15 +8,17 @@ and therefore is not launched by a normal suite selection.
 
 - `smoke` checks the core package ABI/import surface, PyTorch XPU/XCCL,
   mpi4py, dpctl, dpnp, and PyTorch/dpnp DLPack sharing.
-- `optional-imports` checks science, LLM, communication, and legacy Intel/IPEX
-  package groups without making them part of the default acceptance gate.
+- `optional-imports` checks science, LLM, communication, ezpz, and legacy
+  Intel/IPEX package groups without making them part of the default acceptance
+  gate.
 - `harness` exercises the collective validator on CPU/gloo, through PALS-style
   environment variables, and with expected fault injection.
 - `distributed` contains correctness-aware all-reduce, all-gather,
   all-to-all, uneven all-to-all, reduce-scatter, collective/compute overlap,
   five P2P modes, independent-stream overlap, five expert/pipeline/disjoint/
-  overlapping subgroup communicator modes, and direct GPU-buffer
-  `mpi4py.Allreduce` validation.
+  overlapping subgroup communicator modes, direct GPU-buffer
+  `mpi4py.Allreduce` validation, and ezpz distributed bring-up under both
+  `mpiexec` and `torchrun`.
 - `regression` contains the GQA SDPA compiler crash, its baseline, the full
   TP/FSDP SDPA reproducer, Gamma sampling, DeepSpeed and IPEX JIT builds, vLLM
   registry inspection, and the XCCL `empty_cache` memory leak.
@@ -28,6 +30,87 @@ and therefore is not launched by a normal suite selection.
   TorchComms, c10d, and c10d-through-TorchComms adapters, plus GEMM sweeps.
 
 ## Retained manual sources
+
+### ezpz
+
+ezpz is **not part of the Frameworks SDK**. No `frameworks` module ships it, so
+the copy that gets imported is whatever the user installed (user site,
+`PYTHONUSERBASE`, or an active venv), and its version floats independently of
+the SDK. That is precisely why the pairing is worth testing: the registered
+cases validate *this* SDK against *the ezpz on the path*, and they skip cleanly
+when no ezpz is installed rather than failing an SDK acceptance run over a
+package the SDK does not provide.
+
+Because the version floats, check it before filing a failure — a stale
+user-site install reproduces bugs that were fixed upstream long ago.
+`ezpz-environment` prints `ezpz=<version>` and `ezpz_path=[...]` first for
+exactly this reason. These cases were validated against ezpz 0.27.6; upgrade
+before investigating a failure:
+
+```bash
+python -m pip install --user --upgrade git+https://github.com/saforem2/ezpz
+```
+
+Two properties of ezpz shape how these tests are registered:
+
+- Importing `ezpz` is cheap and MPI-free, but resolving rank/world (and
+  therefore `setup_torch()`) reaches `mpi4py.MPI`, which aborts the interpreter
+  outside an allocation: `Fatal error in internal_Init_thread`. The distributed
+  cases consequently declare `min_xpus`, so they skip on a login node instead of
+  producing a confusing abort.
+- ezpz's lazy `__getattr__` turns a missing optional dependency into a missing
+  *attribute* rather than an ImportError. `ezpz-environment` resolves each
+  attribute the suite relies on so that failure mode surfaces as a named check
+  instead of an AttributeError deep inside an application.
+
+`ezpz-environment` (single process, no MPI) checks that ezpz agrees with the
+loaded PyTorch about the accelerator: an ezpz reporting `cpu`/`gloo` on a
+12-XPU node silently runs every ezpz-launched job on the CPU, and no
+import-only test detects that.
+
+`ezpz-distributed-{mpiexec,torchrun}` and `ezpz-launch` check bring-up results
+rather than the absence of an exception: ranks agree with the launcher's own
+environment, the gathered ranks are a permutation of `range(world_size)`, local
+ranks map to *distinct* devices on each host, and an all-reduce over ezpz's
+process group returns the closed-form answer. The distinct-device check is the
+valuable one — every rank binding device 0 neither raises nor hangs.
+
+It was verified non-vacuous by forcing `LOCAL_RANK=0` on every rank while all
+12 XPUs stay visible; the test must fail with
+`ranks on one host share device indices [0, 0, 0, 0]`. Note that
+`ZE_AFFINITY_MASK=0` is *not* a valid injection against current ezpz: 0.27.6
+rejects it inside `setup_torch()` with `RuntimeError: The device index is out
+of range`, which is better ezpz behavior but aborts before the check runs, so
+it no longer probes what it appears to.
+
+All three launchers are registered because they drive genuinely different ezpz
+code paths, and one passing does not imply the others:
+
+- `mpiexec`/PALS: ezpz reads `PALS_*` rank variables.
+- `torchrun`: ezpz reads `RANK`/`LOCAL_RANK` instead.
+- `ezpz launch`: ezpz *constructs* the launch itself — it resolves the PBS
+  hostfile, computes the rank geometry, builds the CPU-binding and `mpiexec`
+  flags, and only then execs the payload. This is the path most ALCF jobs
+  actually take, so an SDK change that breaks ezpz's hostfile parsing or
+  binding logic is invisible to the other two cases.
+
+`ezpz-launch` passes explicit `--nproc/--nproc_per_node` so the case is
+reproducible at any allocation size. Dropping those flags makes ezpz derive the
+full job geometry from PBS on its own, which is worth running manually on a
+multi-node allocation when validating a new SDK:
+
+```bash
+ezpz launch -- python tests/distributed/ezpz_distributed.py
+```
+
+To run the registered cases directly:
+
+```bash
+mpiexec -n 12 -ppn 12 python tests/distributed/ezpz_distributed.py
+torchrun --standalone --nproc-per-node=2 tests/distributed/ezpz_distributed.py
+ezpz launch --nproc 2 --nproc_per_node 2 -- python tests/distributed/ezpz_distributed.py
+TEST_DEVICE=cpu python tests/smoke/ezpz_env.py
+```
 
 ### JAX QMC
 
