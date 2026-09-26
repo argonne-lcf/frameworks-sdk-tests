@@ -50,6 +50,8 @@ the examples do not share a bounding flag:
 |---|---|---|
 | `test` | `--train-iters` (preset-driven, 400 at s/m/l) | yes |
 | `vit` | `--max-iters` (default 224) | yes |
+| `hf` | `--max-steps` (HF `TrainingArguments`) | yes, via direct launch |
+| `hf_trainer` | `--max-steps` (HF `TrainingArguments`) | yes, via direct launch |
 | `fsdp` | `--epochs` (default 10) | no |
 | `fsdp_tp` | `--epochs` (default 5, over full imdb) | no |
 | `diffusion` | no iteration cap at all | no |
@@ -69,17 +71,35 @@ ezpz launch -- python3 -m ezpz.examples.fsdp_tp --model s --epochs 1
 It also treats "exit 0 but no `timings.csv`" as a failure, so an example that
 silently produces no measurement cannot pass.
 
-`hf` and `hf_trainer` are intentionally unregistered: they require the gated
-`meta-llama/Llama-3.2-1B` and report to wandb, which does not belong in an SDK
-acceptance run.
+`hf` and `hf_trainer` are registered, but they do not go through `ezpz
+benchmark`: that path hard-codes `meta-llama/Llama-3.2-1B`, which is gated (an
+anonymous fetch of its config returns 401, versus 307 for Qwen), and
+`--report-to=wandb`. Neither is overridable through `ezpz benchmark`, so the
+wrapper launches those two modules directly against a public checkpoint with
+an explicit step budget, then writes the same `timings.csv` contract itself.
+Defaults, all overridable by environment variable:
+
+| variable | default |
+|---|---|
+| `EZPZ_BENCH_HF_MODEL` | `Qwen/Qwen2.5-0.5B-Instruct` |
+| `EZPZ_BENCH_HF_DATASET` | `eliplutchok/fineweb-small-sample` |
+| `EZPZ_BENCH_HF_MAX_STEPS` | `20` |
+| `EZPZ_BENCH_HF_BLOCK_SIZE` | `1024` |
+
+The wrapper sets `WANDB_DISABLED=1` in addition to `--report-to none`. This is
+not redundant: ezpz calls `setup_wandb()` itself, independently of HF's
+`report_to`, so `--report-to none` alone still logged into wandb and opened a
+run against the user's real project. `WANDB_DISABLED` is the gate ezpz
+documents and checks.
 
 The `s`/`m`/`l` ladder is roughly 107M/248M/449M parameters at 400 iterations
 (`test`). Measured on one Aurora node (12 ranks, `frameworks/2025.3.1`, ezpz
 0.27.6): `test s` 48s / 107,147,274 params, `test m` 43s / 247,803,914 params,
-`vit s` 46s. `m` is not slower than `s` because its batch size halves
-(64 → 32) as the model grows. `benchmark-ezpz-test-s` and `-vit-s` are the
-cheap standard cases; `-test-m` and `-test-l` carry the `slow` tag. Note the
-whole `benchmark` suite is opt-in and never runs by default.
+`vit s` 46s, `hf` 72s, `hf_trainer` 42s. `m` is not slower than `s` because
+its batch size halves (64 → 32) as the model grows. `benchmark-ezpz-test-s`
+and `-vit-s` are the cheap standard cases; `-test-m` and `-test-l` carry the
+`slow` tag. Note the whole `benchmark` suite is opt-in and never runs by
+default.
 
 A version caveat worth repeating here: installing ezpz with `--no-deps` leaves
 its pins unenforced, and a stray `plotext` 6.x breaks **every** example with

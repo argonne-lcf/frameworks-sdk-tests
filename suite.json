@@ -737,6 +737,26 @@
       "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
       "min_xpus": 2,
       "timeout": 1800
+    },
+    {
+      "id": "benchmark-ezpz-hf",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "huggingface", "llm", "fsdp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "hf"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["datasets", "ezpz", "plotext", "torch", "torchinfo", "transformers"],
+      "min_xpus": 2,
+      "timeout": 2700
+    },
+    {
+      "id": "benchmark-ezpz-hf-trainer",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "huggingface", "llm", "trainer", "fsdp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "hf_trainer"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["datasets", "ezpz", "plotext", "torch", "torchinfo", "transformers"],
+      "min_xpus": 2,
+      "timeout": 2700
     }
   ]
 }
