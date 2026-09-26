@@ -57,6 +57,25 @@
     },
 
     {
+      "id": "imports-ezpz",
+      "suite": "optional-imports",
+      "tags": ["packages", "ezpz", "distributed"],
+      "command": [
+        "python",
+        "tests/smoke/package_imports.py",
+        "ezpz"
+      ],
+      "required_python_modules": ["ezpz"]
+    },
+    {
+      "id": "ezpz-environment",
+      "suite": "optional-imports",
+      "tags": ["ezpz", "distributed", "launcher", "fast"],
+      "command": ["python", "tests/smoke/ezpz_env.py"],
+      "required_python_modules": ["ezpz", "torch"]
+    },
+
+    {
       "id": "imports-science",
       "suite": "optional-imports",
       "tags": ["packages", "science"],
@@ -321,6 +340,40 @@
       "required_python_modules": ["mpi4py", "torch"],
       "min_xpus": 2,
       "timeout": 300
+    },
+    {
+      "id": "ezpz-distributed-mpiexec",
+      "suite": "distributed",
+      "tags": ["ezpz", "mpi", "xpu", "launcher", "distributed"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "tests/distributed/ezpz_distributed.py"],
+      "required_commands": ["mpiexec"],
+      "required_python_modules": ["ezpz", "mpi4py", "torch"],
+      "env": {"TEST_TIMEOUT": "300"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "ezpz-distributed-torchrun",
+      "suite": "distributed",
+      "tags": ["ezpz", "pytorch", "xpu", "launcher", "distributed"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/ezpz_distributed.py"],
+      "required_commands": ["torchrun"],
+      "required_python_modules": ["ezpz", "torch"],
+      "env": {"TEST_TIMEOUT": "300"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "ezpz-launch",
+      "suite": "distributed",
+      "tags": ["ezpz", "launcher", "xpu", "distributed", "pals"],
+      "command": ["ezpz", "launch", "--nproc", "2", "--nproc_per_node", "2", "--", "python", "tests/distributed/ezpz_distributed.py"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "sh", "torch"],
+      "env": {"TEST_TIMEOUT": "300"},
+      "min_xpus": 2,
+      "min_nodes": 1,
+      "timeout": 900
     },
 
     {

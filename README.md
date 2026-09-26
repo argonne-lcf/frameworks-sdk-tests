@@ -56,10 +56,12 @@ requirements.
 Suites are intentionally separated by cost and purpose:
 
 - `smoke`: default package and single-XPU acceptance checks.
-- `optional-imports`: science, LLM, communication, and Intel/IPEX package groups.
+- `optional-imports`: science, LLM, communication, ezpz, and Intel/IPEX package
+  groups, plus the ezpz/SDK environment consistency check.
 - `harness`: CPU/gloo and fault-injection checks for the collective validator.
 - `distributed`: two- and four-XPU PyTorch/XCCL collectives, including
-  subgroup communicator layouts, plus direct GPU-aware MPI.
+  subgroup communicator layouts, plus direct GPU-aware MPI and ezpz
+  distributed bring-up under `mpiexec` and `torchrun`.
 - `regression`: SDPA, JIT, vLLM, Gamma sampling, and XCCL memory regressions.
 - `workload`: bounded DDP/FSDP/1-D and 2-D DTensor, DeepSpeed, TorchComms,
   sequence parallelism, MoE, and split CosmicTagger application tests.
