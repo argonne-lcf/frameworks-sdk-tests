@@ -112,7 +112,24 @@ def main() -> None:
 
     if ok_type:
         ezpz_xpu = str(device_type).lower() == "xpu"
-        if torch_xpu and not ezpz_xpu:
+        # TORCH_DEVICE is ezpz's documented device override
+        # (https://ezpz.cool/configuration/#device-distribution). If the user
+        # deliberately forced a device, "ezpz disagrees with torch" is the
+        # requested behavior, not a misconfiguration -- so honor the override
+        # and only check that ezpz actually obeyed it.
+        forced_device = os.environ.get("TORCH_DEVICE", "").strip().lower()
+        if forced_device:
+            if str(device_type).lower() != forced_device:
+                failures.append(
+                    f"TORCH_DEVICE={forced_device!r} was set but ezpz selected "
+                    f"device type {device_type!r}"
+                )
+            else:
+                print(
+                    f"PASS device override honored (TORCH_DEVICE={forced_device})",
+                    flush=True,
+                )
+        elif torch_xpu and not ezpz_xpu:
             failures.append(
                 f"torch reports usable XPUs but ezpz selected device type "
                 f"{device_type!r}; ezpz-launched jobs would run on the CPU"
@@ -132,7 +149,21 @@ def main() -> None:
         # A CPU device must not claim an accelerator backend, and an XPU device
         # falling back to gloo is a silently-degraded job, not a working one.
         backend_name = str(backend).lower()
-        if str(device_type).lower() == "xpu":
+        forced_backend = os.environ.get("TORCH_BACKEND", "").strip().lower()
+        if forced_backend:
+            # Same reasoning as TORCH_DEVICE: an explicit override is a
+            # request, so only verify ezpz honored it.
+            if backend_name != forced_backend:
+                failures.append(
+                    f"TORCH_BACKEND={forced_backend!r} was set but ezpz "
+                    f"selected backend {backend!r}"
+                )
+            else:
+                print(
+                    f"PASS backend override honored (TORCH_BACKEND={forced_backend})",
+                    flush=True,
+                )
+        elif str(device_type).lower() == "xpu":
             if backend_name not in ACCELERATOR_BACKENDS:
                 failures.append(
                     f"device type 'xpu' resolved to backend {backend!r}; "

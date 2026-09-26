@@ -86,11 +86,16 @@ Defaults, all overridable by environment variable:
 | `EZPZ_BENCH_HF_MAX_STEPS` | `20` |
 | `EZPZ_BENCH_HF_BLOCK_SIZE` | `1024` |
 
-The wrapper sets `WANDB_DISABLED=1` in addition to `--report-to none`. This is
-not redundant: ezpz calls `setup_wandb()` itself, independently of HF's
-`report_to`, so `--report-to none` alone still logged into wandb and opened a
-run against the user's real project. `WANDB_DISABLED` is the gate ezpz
-documents and checks.
+The wrapper uses ezpz's documented offline recipe,
+`EZPZ_TRACKER_BACKENDS=none WANDB_DISABLED=1` ([configuration →
+experiment tracking](https://ezpz.cool/configuration/#experiment-tracking)).
+`--report-to none` alone is not enough: it only silences HF's own Trainer,
+while ezpz's tracking is independent and defaults to `wandb`, so the first
+validation run logged in and opened a run against the user's real project.
+`EZPZ_TRACKER_BACKENDS=none` is the kill switch for *all* ezpz backends —
+relevant because `mlflow` is also supported and auto-loads credentials from
+`~/.amsc.env`, so disabling wandb alone would still leave a tracker able to
+fire.
 
 The `s`/`m`/`l` ladder is roughly 107M/248M/449M parameters at 400 iterations
 (`test`). Measured on one Aurora node (12 ranks, `frameworks/2025.3.1`, ezpz
@@ -188,7 +193,7 @@ To run the registered cases directly:
 mpiexec -n 12 -ppn 12 python tests/distributed/ezpz_distributed.py
 torchrun --standalone --nproc-per-node=2 tests/distributed/ezpz_distributed.py
 ezpz launch --nproc 2 --nproc_per_node 2 -- python tests/distributed/ezpz_distributed.py
-TEST_DEVICE=cpu python tests/smoke/ezpz_env.py
+TORCH_DEVICE=cpu TORCH_BACKEND=gloo python tests/smoke/ezpz_env.py
 ```
 
 ### JAX QMC

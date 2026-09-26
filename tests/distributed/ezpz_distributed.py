@@ -23,8 +23,9 @@ Run under any launcher the SDK supports::
     mpiexec -n 12 -ppn 12 python tests/distributed/ezpz_distributed.py
     torchrun --standalone --nproc-per-node=2 tests/distributed/ezpz_distributed.py
 
-``TEST_DEVICE=cpu`` forces the gloo path so the logic is exercisable without an
-accelerator.
+``TORCH_DEVICE=cpu`` (with ``TORCH_BACKEND=gloo``) forces the CPU path so the
+logic is exercisable without an accelerator; both are ezpz's own documented
+overrides, see https://ezpz.cool/configuration/#device-distribution.
 """
 
 from __future__ import annotations

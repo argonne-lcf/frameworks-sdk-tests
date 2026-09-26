@@ -73,18 +73,20 @@ HF_BLOCK_SIZE=${EZPZ_BENCH_HF_BLOCK_SIZE:-1024}
 
 run_hf_example() {
     # `ezpz benchmark` cannot express these overrides, so drive the module
-    # directly. --max-steps is what makes this bounded; --report-to=none keeps
+    # directly. --max-steps is what makes this bounded; --report-to=none stops
     # HF's own Trainer from reporting.
     #
-    # WANDB_DISABLED is set separately and deliberately: ezpz calls
-    # setup_wandb() itself, independently of HF's report_to, so --report-to
-    # alone still logged in and opened a run against the user's real wandb
-    # project (observed on Aurora). WANDB_DISABLED is the gate ezpz documents
-    # and checks, and an acceptance run must not depend on network
-    # credentials or write to someone's project.
+    # ezpz's tracking is separate from HF's report_to and has to be turned off
+    # on its own. This is the offline recipe from the ezpz docs
+    # (https://ezpz.cool/configuration/#experiment-tracking):
+    # EZPZ_TRACKER_BACKENDS=none is the documented kill switch for *all*
+    # backends -- ezpz supports wandb, csv, and mlflow, and mlflow
+    # auto-loads credentials from ~/.amsc.env, so disabling wandb alone would
+    # still leave a tracker able to fire. WANDB_DISABLED is kept alongside it
+    # exactly as the docs pair them.
     local module=$1
     local t0=$SECONDS
-    WANDB_DISABLED=1 WANDB_MODE=disabled \
+    EZPZ_TRACKER_BACKENDS=none WANDB_DISABLED=1 \
         ezpz launch -- python3 -m "ezpz.examples.${module}" \
         --model_name_or_path "${HF_MODEL}" \
         --dataset_name "${HF_DATASET}" \
