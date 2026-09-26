@@ -41,6 +41,16 @@ cases validate *this* SDK against *the ezpz on the path*, and they skip cleanly
 when no ezpz is installed rather than failing an SDK acceptance run over a
 package the SDK does not provide.
 
+Because the version floats, check it before filing a failure — a stale
+user-site install reproduces bugs that were fixed upstream long ago.
+`ezpz-environment` prints `ezpz=<version>` and `ezpz_path=[...]` first for
+exactly this reason. These cases were validated against ezpz 0.27.6; upgrade
+before investigating a failure:
+
+```bash
+python -m pip install --user --upgrade git+https://github.com/saforem2/ezpz
+```
+
 Two properties of ezpz shape how these tests are registered:
 
 - Importing `ezpz` is cheap and MPI-free, but resolving rank/world (and
@@ -63,10 +73,15 @@ rather than the absence of an exception: ranks agree with the launcher's own
 environment, the gathered ranks are a permutation of `range(world_size)`, local
 ranks map to *distinct* devices on each host, and an all-reduce over ezpz's
 process group returns the closed-form answer. The distinct-device check is the
-valuable one — every rank binding device 0 neither raises nor hangs. It was
-verified against a real fault by re-running under `ZE_AFFINITY_MASK=0`, which
-exposes a single XPU and forces the collision; the test must fail in that
-configuration.
+valuable one — every rank binding device 0 neither raises nor hangs.
+
+It was verified non-vacuous by forcing `LOCAL_RANK=0` on every rank while all
+12 XPUs stay visible; the test must fail with
+`ranks on one host share device indices [0, 0, 0, 0]`. Note that
+`ZE_AFFINITY_MASK=0` is *not* a valid injection against current ezpz: 0.27.6
+rejects it inside `setup_torch()` with `RuntimeError: The device index is out
+of range`, which is better ezpz behavior but aborts before the check runs, so
+it no longer probes what it appears to.
 
 All three launchers are registered because they drive genuinely different ezpz
 code paths, and one passing does not imply the others:
@@ -87,14 +102,6 @@ multi-node allocation when validating a new SDK:
 ```bash
 ezpz launch -- python tests/distributed/ezpz_distributed.py
 ```
-
-It declares `sh` as a required module because `ezpz launch` imports it
-(`ezpz.pbs.get_pbs_running_jobs_for_user`) to find the active PBS job. The
-Aurora `frameworks/2025.3.1` SDK does not ship `sh`, so `ezpz launch` currently
-fails there with `ModuleNotFoundError: No module named 'sh'` while `mpiexec`
-and `torchrun` both work. Declaring the dependency turns that into an explicit
-skip rather than a failed SDK acceptance run; install `sh` into the environment
-to actually exercise the case.
 
 To run the registered cases directly:
 

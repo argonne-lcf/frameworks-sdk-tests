@@ -369,7 +369,7 @@
       "tags": ["ezpz", "launcher", "xpu", "distributed", "pals"],
       "command": ["ezpz", "launch", "--nproc", "2", "--nproc_per_node", "2", "--", "python", "tests/distributed/ezpz_distributed.py"],
       "required_commands": ["ezpz", "mpiexec"],
-      "required_python_modules": ["ezpz", "sh", "torch"],
+      "required_python_modules": ["ezpz", "torch"],
       "env": {"TEST_TIMEOUT": "300"},
       "min_xpus": 2,
       "min_nodes": 1,
