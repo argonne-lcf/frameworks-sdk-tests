@@ -9,30 +9,13 @@
 #      can only be picked up from FRAMEWORKS_TEST_ARTIFACT_DIR at runtime.
 #      Without it, `ezpz benchmark` writes into ./outputs/ in the repo.
 #
-#   2. Bound the examples that `ezpz benchmark` cannot bound itself. It
-#      forwards only `--model`, and the examples do not share a bounding flag,
-#      so each was measured at its `ezpz benchmark` defaults (one Aurora node,
-#      12 ranks, --model s):
-#
-#        test       --train-iters (400 at s/m/l)   48s
-#        vit        --max-iters (default 224)      46s
-#        fsdp       --epochs 10 over MNIST         65s
-#        diffusion  --train-steps (default 400)    91s
-#        fsdp_tp    --epochs 5                     TIMEOUT (>600s on any dataset)
-#
-#      fsdp_tp is the one that needs help: at --epochs 5 it exceeds 600s on
-#      imdb *and* on mnist, so the corpus is not the driver -- the epoch count
-#      is. Capped at --epochs 1 it completes (419s imdb / 537s random), so it
-#      is registered through a direct launch with an explicit budget rather
-#      than refused.
-#
-#   3. Run the HuggingFace examples off a public model with an explicit step
-#      budget. `ezpz benchmark --run hf` hard-codes meta-llama/Llama-3.2-1B
-#      (gated: an anonymous fetch of its config returns 401, versus 307 for
-#      Qwen) and `--report-to=wandb`. Neither belongs in an SDK acceptance
-#      run, and the model choice is not overridable through `ezpz benchmark`,
-#      so those two cases launch the example module directly and synthesize
-#      the same timings.csv contract.
+#   2. Run the HuggingFace examples off a public model. `ezpz benchmark --run
+#      hf` hard-codes meta-llama/Llama-3.2-1B, which is gated -- an anonymous
+#      fetch of its config returns 401, versus 307 for Qwen -- and
+#      `--report-to=wandb`. The model choice is not overridable through
+#      `ezpz benchmark`, so those two cases launch the example module directly
+#      and synthesize the same timings.csv contract. Everything else about
+#      them (step budget, block size, eval) matches what run_all.py passes.
 set -uo pipefail
 
 EXAMPLE=${1:-test}
@@ -57,18 +40,13 @@ command -v ezpz >/dev/null 2>&1 || {
     exit 127
 }
 
-# Public, ungated, and small enough to fine-tune briefly on one node.
-# Override with EZPZ_BENCH_HF_MODEL to benchmark a different checkpoint.
+# Public, ungated, and small enough to fine-tune briefly on one node. The
+# rest of the arguments mirror what run_all.py passes for these examples, so
+# only the gated model is swapped out.
 HF_MODEL=${EZPZ_BENCH_HF_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}
 HF_DATASET=${EZPZ_BENCH_HF_DATASET:-eliplutchok/fineweb-small-sample}
-HF_MAX_STEPS=${EZPZ_BENCH_HF_MAX_STEPS:-20}
-HF_BLOCK_SIZE=${EZPZ_BENCH_HF_BLOCK_SIZE:-1024}
-
-# fsdp_tp's cost is driven by its epoch count, not its corpus: at the
-# `ezpz benchmark` default of --epochs 5 it exceeds 600s on imdb and on mnist
-# alike. One epoch completes (419s imdb / 537s random on one node).
-FSDP_TP_DATASET=${EZPZ_BENCH_FSDP_TP_DATASET:-random}
-FSDP_TP_EPOCHS=${EZPZ_BENCH_FSDP_TP_EPOCHS:-1}
+HF_MAX_STEPS=${EZPZ_BENCH_HF_MAX_STEPS:-100}
+HF_BLOCK_SIZE=${EZPZ_BENCH_HF_BLOCK_SIZE:-2048}
 
 run_hf_example() {
     # `ezpz benchmark` cannot express these overrides, so drive the module
@@ -110,23 +88,6 @@ run_hf_example() {
     return "${rc}"
 }
 
-run_fsdp_tp() {
-    # `ezpz benchmark` runs this at --epochs 5, which exceeds 600s on both
-    # imdb and mnist, so it cannot be driven through `ezpz benchmark`. Launch
-    # it directly with an explicit epoch budget and synthesize the same
-    # timings.csv contract.
-    local t0=$SECONDS
-    EZPZ_TRACKER_BACKENDS=none WANDB_DISABLED=1 \
-        ezpz launch -- python3 -m ezpz.examples.fsdp_tp \
-        --model "${MODEL}" \
-        --dataset "${FSDP_TP_DATASET}" \
-        --epochs "${FSDP_TP_EPOCHS}"
-    local rc=$? el=$((SECONDS - t0))
-    printf 'name,exit_code,wall_seconds\nfsdp_tp,%d,%d\n' "${rc}" "${el}" \
-        >"${OUTDIR}/timings.csv"
-    return "${rc}"
-}
-
 case "${EXAMPLE}" in
 hf | hf_trainer)
     echo "ezpz ${EXAMPLE}: model=${HF_MODEL} dataset=${HF_DATASET}" \
@@ -134,16 +95,10 @@ hf | hf_trainer)
     run_hf_example "${EXAMPLE}"
     rc=$?
     ;;
-fsdp_tp)
-    echo "ezpz fsdp_tp: model=${MODEL} dataset=${FSDP_TP_DATASET}" \
-        "epochs=${FSDP_TP_EPOCHS} outdir=${OUTDIR}"
-    run_fsdp_tp
-    rc=$?
-    ;;
 *)
-    # test / vit / fsdp / diffusion: `ezpz benchmark` drives these correctly
-    # and they are bounded at its defaults. Do NOT fall through to the HF
-    # branch -- these parsers reject the HuggingFace TrainingArguments flags
+    # test / vit / fsdp / diffusion / fsdp_tp all run correctly under
+    # `ezpz benchmark` at its own defaults. Do NOT fall through to the HF
+    # branch -- their parsers reject the HuggingFace TrainingArguments flags
     # with "unrecognized arguments" and exit 2.
     echo "ezpz benchmark: example=${EXAMPLE} model=${MODEL} outdir=${OUTDIR}"
     ezpz benchmark --run "${EXAMPLE}" --model "${MODEL}" --outdir "${OUTDIR}"

@@ -766,7 +766,7 @@
       "required_commands": ["ezpz", "mpiexec"],
       "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
       "min_xpus": 2,
-      "timeout": 2700
+      "timeout": 3600
     },
     {
       "id": "benchmark-ezpz-hf",

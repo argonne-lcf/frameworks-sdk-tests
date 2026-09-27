@@ -43,33 +43,26 @@ so the per-case artifact path can only be read from
 `FRAMEWORKS_TEST_ARTIFACT_DIR` at runtime. Without the wrapper, `ezpz
 benchmark` writes into `./outputs/` in the working tree.
 
-**Bounding.** `ezpz benchmark` forwards only `--model`, and the examples do
-not share a bounding flag, so each was measured at those defaults (one Aurora
-node, 12 ranks, `--model s`):
+**Cost.** Every example runs to completion under `ezpz benchmark` at its own
+defaults. Measured on one Aurora node, 12 ranks, `--model s`:
 
-| example | bound | at `ezpz benchmark` defaults | how it is registered |
-|---|---|---|---|
-| `test` | `--train-iters` (400 at s/m/l) | 48s | `ezpz benchmark` |
-| `vit` | `--max-iters` (default 224) | 46s | `ezpz benchmark` |
-| `fsdp` | `--epochs` 10 over MNIST | 65s | `ezpz benchmark` |
-| `diffusion` | `--train-steps` (default 400) | 91s | `ezpz benchmark` |
-| `fsdp_tp` | `--epochs` 5 | **>600s** | direct launch, `--epochs 1` |
-| `hf` | `--max-steps` | — | direct launch, `--max-steps 20` |
-| `hf_trainer` | `--max-steps` | — | direct launch, `--max-steps 20` |
+| example | bound | measured |
+|---|---|---|
+| `test` | `--train-iters` (400 at s/m/l) | 48s |
+| `vit` | `--max-iters` (default 224) | 46s |
+| `fsdp` | `--epochs` 10 over MNIST | 65s |
+| `diffusion` | `--train-steps` (default 400) | 91s |
+| `fsdp_tp` | `--epochs` 5 over imdb | 1884s (~31 min) |
+| `hf` / `hf_trainer` | `--max-steps` 100 | 109s / 42s |
 
-Only `fsdp_tp` needs a budget imposed on it. At `--epochs 5` it exceeds 600s
-on imdb *and* on mnist, so the corpus is not the driver — the epoch count is.
-Capped at one epoch it completes (419s imdb, 537s random), so it is
-registered through a direct launch rather than left to run until a job wall
-kills it. Both knobs are overridable:
+`fsdp_tp` is the expensive one — at `seq_len` 2048, batch size 4, 12 ranks,
+one imdb epoch is roughly 25000/(4×12) ≈ 520 steps, so five epochs takes about
+half an hour. It carries the `slow` tag and a 3600s timeout; nothing about it
+needs special handling.
 
-| variable | default |
-|---|---|
-| `EZPZ_BENCH_FSDP_TP_DATASET` | `random` |
-| `EZPZ_BENCH_FSDP_TP_EPOCHS` | `1` |
-
-The wrapper also **fails a run that exits 0 without writing a `timings.csv`**,
-so an example that produces no measurement cannot pass silently.
+The wrapper **fails a run that exits 0 without writing a `timings.csv`**, so an
+example that produces no measurement cannot pass silently. It rejects only
+unknown example names.
 
 `hf` and `hf_trainer` are registered, but they do not go through `ezpz
 benchmark`: that path hard-codes `meta-llama/Llama-3.2-1B`, which is gated (an
@@ -83,8 +76,8 @@ Defaults, all overridable by environment variable:
 |---|---|
 | `EZPZ_BENCH_HF_MODEL` | `Qwen/Qwen2.5-0.5B-Instruct` |
 | `EZPZ_BENCH_HF_DATASET` | `eliplutchok/fineweb-small-sample` |
-| `EZPZ_BENCH_HF_MAX_STEPS` | `20` |
-| `EZPZ_BENCH_HF_BLOCK_SIZE` | `1024` |
+| `EZPZ_BENCH_HF_MAX_STEPS` | `100` (matches run_all.py) |
+| `EZPZ_BENCH_HF_BLOCK_SIZE` | `2048` (matches run_all.py) |
 
 The wrapper uses ezpz's documented offline recipe,
 `EZPZ_TRACKER_BACKENDS=none WANDB_DISABLED=1` ([configuration →
