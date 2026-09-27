@@ -739,6 +739,26 @@
       "timeout": 1800
     },
     {
+      "id": "benchmark-ezpz-fsdp-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "fsdp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "fsdp", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo", "torchvision"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
+      "id": "benchmark-ezpz-diffusion-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "diffusion", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "diffusion", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
       "id": "benchmark-ezpz-hf",
       "suite": "benchmark",
       "tags": ["ezpz", "training", "huggingface", "llm", "fsdp", "performance", "bounded", "xpu"],

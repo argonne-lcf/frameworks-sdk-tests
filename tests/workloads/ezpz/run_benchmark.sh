@@ -9,21 +9,21 @@
 #      can only be picked up from FRAMEWORKS_TEST_ARTIFACT_DIR at runtime.
 #      Without it, `ezpz benchmark` writes into ./outputs/ in the repo.
 #
-#   2. Refuse to launch an unbounded example. `ezpz benchmark` passes only
-#      `--model` to each example, and the examples do not share a bounding
-#      flag:
+#   2. Refuse to launch the one example that is genuinely unbounded. `ezpz
+#      benchmark` passes only `--model`, and the examples do not share a
+#      bounding flag, so each was measured at the defaults `ezpz benchmark`
+#      actually uses (one Aurora node, 12 ranks, --model s, 900s cap):
 #
-#        test       --train-iters   (preset-driven, 400 at s/m/l)
-#        vit        --max-iters     (default 224)
-#        fsdp       --epochs        (default 10)
-#        fsdp_tp    --epochs        (default 5, over the full imdb dataset)
-#        diffusion  (no iteration cap at all)
+#        test       --train-iters (400 at s/m/l)   48s
+#        vit        --max-iters (default 224)      46s
+#        fsdp       --epochs 10 over MNIST         53s  (fixed-size corpus)
+#        diffusion  --train-steps (default 400)    69s  (toy corpus default)
+#        fsdp_tp    --epochs 5 over full imdb      TIMEOUT at 900s
 #
-#      The epoch-based examples are dataset-scaled, not step-capped, so their
-#      runtime is set by the corpus rather than by any flag `ezpz benchmark`
-#      forwards. Observed on Aurora at --model s, 12 ranks: `test` finished in
-#      50s and `fsdp` in 44s, while `fsdp_tp` was still running when a 30
-#      minute job wall killed it, producing no timing row at all.
+#      Only fsdp_tp is unbounded: its cost scales with a 25k-row dataset at
+#      seq_len 2048 and nothing `ezpz benchmark` forwards caps it. `--epochs`
+#      alone is not the tell -- fsdp uses it too and finishes in under a
+#      minute because MNIST is a fixed size.
 #
 #   3. Run the HuggingFace examples off a public model with an explicit step
 #      budget. `ezpz benchmark --run hf` hard-codes meta-llama/Llama-3.2-1B
@@ -41,13 +41,14 @@ MODEL=${2:-s}
 # is a property of the request, not of the environment, so it must report the
 # same way whether or not ezpz happens to be installed.
 case "${EXAMPLE}" in
-test | vit | hf | hf_trainer) ;;
-fsdp | fsdp_tp | diffusion)
-    echo "refusing to run '${EXAMPLE}' from the test suite: it is bounded by" >&2
-    echo "--epochs over a full dataset (or not bounded at all), so its runtime" >&2
-    echo "is set by the corpus, not by anything 'ezpz benchmark' forwards." >&2
+test | vit | fsdp | diffusion | hf | hf_trainer) ;;
+fsdp_tp)
+    echo "refusing to run 'fsdp_tp' from the test suite: it trains for" >&2
+    echo "--epochs (default 5) over the full imdb dataset at seq_len 2048," >&2
+    echo "so its runtime is set by the corpus and nothing 'ezpz benchmark'" >&2
+    echo "forwards can bound it. Measured: still running at a 900s cap." >&2
     echo "Run it in a dedicated job with an explicit budget instead, e.g.:" >&2
-    echo "  ezpz launch -- python3 -m ezpz.examples.${EXAMPLE} --model ${MODEL} --epochs 1" >&2
+    echo "  ezpz launch -- python3 -m ezpz.examples.fsdp_tp --model ${MODEL} --epochs 1" >&2
     exit 2
     ;;
 *)
@@ -112,15 +113,19 @@ run_hf_example() {
 }
 
 case "${EXAMPLE}" in
-test | vit)
-    echo "ezpz benchmark: example=${EXAMPLE} model=${MODEL} outdir=${OUTDIR}"
-    ezpz benchmark --run "${EXAMPLE}" --model "${MODEL}" --outdir "${OUTDIR}"
-    rc=$?
-    ;;
-*)
+hf | hf_trainer)
     echo "ezpz ${EXAMPLE}: model=${HF_MODEL} dataset=${HF_DATASET}" \
         "max_steps=${HF_MAX_STEPS} outdir=${OUTDIR}"
     run_hf_example "${EXAMPLE}"
+    rc=$?
+    ;;
+*)
+    # test / vit / fsdp / diffusion: `ezpz benchmark` drives these correctly
+    # and they are bounded at its defaults. Do NOT fall through to the HF
+    # branch -- these parsers reject the HuggingFace TrainingArguments flags
+    # with "unrecognized arguments" and exit 2.
+    echo "ezpz benchmark: example=${EXAMPLE} model=${MODEL} outdir=${OUTDIR}"
+    ezpz benchmark --run "${EXAMPLE}" --model "${MODEL}" --outdir "${OUTDIR}"
     rc=$?
     ;;
 esac

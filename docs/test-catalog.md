@@ -43,26 +43,27 @@ so the per-case artifact path can only be read from
 `FRAMEWORKS_TEST_ARTIFACT_DIR` at runtime. Without the wrapper, `ezpz
 benchmark` writes into `./outputs/` in the working tree.
 
-**Refusing unbounded examples.** `ezpz benchmark` forwards only `--model`, and
-the examples do not share a bounding flag:
+**Refusing the one unbounded example.** `ezpz benchmark` forwards only
+`--model`, and the examples do not share a bounding flag, so each one was
+measured at the defaults `ezpz benchmark` actually uses (one Aurora node, 12
+ranks, `--model s`, 900s cap):
 
-| example | bound | registered |
-|---|---|---|
-| `test` | `--train-iters` (preset-driven, 400 at s/m/l) | yes |
-| `vit` | `--max-iters` (default 224) | yes |
-| `hf` | `--max-steps` (HF `TrainingArguments`) | yes, via direct launch |
-| `hf_trainer` | `--max-steps` (HF `TrainingArguments`) | yes, via direct launch |
-| `fsdp` | `--epochs` (default 10) | no |
-| `fsdp_tp` | `--epochs` (default 5, over full imdb) | no |
-| `diffusion` | no iteration cap at all | no |
+| example | bound | measured | registered |
+|---|---|---|---|
+| `test` | `--train-iters` (400 at s/m/l) | 48s | yes |
+| `vit` | `--max-iters` (default 224) | 46s | yes |
+| `fsdp` | `--epochs` 10 over MNIST | 53s | yes |
+| `diffusion` | `--train-steps` (default 400) | 69s | yes |
+| `hf` | `--max-steps` (HF `TrainingArguments`) | 72s | yes, direct launch |
+| `hf_trainer` | `--max-steps` (HF `TrainingArguments`) | 42s | yes, direct launch |
+| `fsdp_tp` | `--epochs` 5 over full imdb | **TIMEOUT at 900s** | **no** |
 
-The epoch-based examples are dataset-scaled rather than step-capped, so their
-runtime is set by the corpus, not by anything `ezpz benchmark` forwards.
-Measured on Aurora at `--model s` with 12 ranks: `test` finished in 50s and
-`fsdp` in 44s, while `fsdp_tp` was still running when a 30-minute job wall
-killed it — producing no timing row at all. The wrapper therefore refuses
-`fsdp`, `fsdp_tp`, and `diffusion` with exit 2 and a pointer to running them
-in a dedicated job with an explicit budget:
+Only `fsdp_tp` is genuinely unbounded: its cost scales with a 25k-row dataset
+at `seq_len` 2048 and nothing `ezpz benchmark` forwards caps it. `--epochs` by
+itself is not the tell — `fsdp` uses it too and finishes in under a minute
+because MNIST is a fixed size, and `diffusion` defaults to a toy corpus with
+`--train-steps 400`. The wrapper therefore refuses `fsdp_tp` with exit 2 and
+points at running it in a dedicated job with an explicit budget:
 
 ```bash
 ezpz launch -- python3 -m ezpz.examples.fsdp_tp --model s --epochs 1
@@ -100,11 +101,10 @@ fire.
 The `s`/`m`/`l` ladder is roughly 107M/248M/449M parameters at 400 iterations
 (`test`). Measured on one Aurora node (12 ranks, `frameworks/2025.3.1`, ezpz
 0.27.6): `test s` 48s / 107,147,274 params, `test m` 43s / 247,803,914 params,
-`vit s` 46s, `hf` 72s, `hf_trainer` 42s. `m` is not slower than `s` because
-its batch size halves (64 → 32) as the model grows. `benchmark-ezpz-test-s`
-and `-vit-s` are the cheap standard cases; `-test-m` and `-test-l` carry the
-`slow` tag. Note the whole `benchmark` suite is opt-in and never runs by
-default.
+`vit s` 46s, `fsdp s` 65s, `diffusion s` 91s, `hf` 72s, `hf_trainer` 42s. `m`
+is not slower than `s` because its batch size halves (64 → 32) as the model
+grows. `-test-m` and `-test-l` carry the `slow` tag. Note the whole
+`benchmark` suite is opt-in and never runs by default.
 
 A version caveat worth repeating here: installing ezpz with `--no-deps` leaves
 its pins unenforced, and a stray `plotext` 6.x breaks **every** example with
