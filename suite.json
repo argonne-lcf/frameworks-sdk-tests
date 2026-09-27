@@ -57,6 +57,25 @@
     },
 
     {
+      "id": "imports-ezpz",
+      "suite": "optional-imports",
+      "tags": ["packages", "ezpz", "distributed"],
+      "command": [
+        "python",
+        "tests/smoke/package_imports.py",
+        "ezpz"
+      ],
+      "required_python_modules": ["ezpz"]
+    },
+    {
+      "id": "ezpz-environment",
+      "suite": "optional-imports",
+      "tags": ["ezpz", "distributed", "launcher", "fast"],
+      "command": ["python", "tests/smoke/ezpz_env.py"],
+      "required_python_modules": ["ezpz", "torch"]
+    },
+
+    {
       "id": "imports-science",
       "suite": "optional-imports",
       "tags": ["packages", "science"],
@@ -321,6 +340,40 @@
       "required_python_modules": ["mpi4py", "torch"],
       "min_xpus": 2,
       "timeout": 300
+    },
+    {
+      "id": "ezpz-distributed-mpiexec",
+      "suite": "distributed",
+      "tags": ["ezpz", "mpi", "xpu", "launcher", "distributed"],
+      "command": ["mpiexec", "-n", "2", "-ppn", "2", "python", "tests/distributed/ezpz_distributed.py"],
+      "required_commands": ["mpiexec"],
+      "required_python_modules": ["ezpz", "mpi4py", "torch"],
+      "env": {"TEST_TIMEOUT": "300"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "ezpz-distributed-torchrun",
+      "suite": "distributed",
+      "tags": ["ezpz", "pytorch", "xpu", "launcher", "distributed"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/distributed/ezpz_distributed.py"],
+      "required_commands": ["torchrun"],
+      "required_python_modules": ["ezpz", "torch"],
+      "env": {"TEST_TIMEOUT": "300"},
+      "min_xpus": 2,
+      "timeout": 600
+    },
+    {
+      "id": "ezpz-launch",
+      "suite": "distributed",
+      "tags": ["ezpz", "launcher", "xpu", "distributed", "pals"],
+      "command": ["ezpz", "launch", "--nproc", "2", "--nproc_per_node", "2", "--", "python", "tests/distributed/ezpz_distributed.py"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "torch"],
+      "env": {"TEST_TIMEOUT": "300"},
+      "min_xpus": 2,
+      "min_nodes": 1,
+      "timeout": 900
     },
 
     {
@@ -643,6 +696,97 @@
       "command": ["python", "tests/workloads/gemm/eleutherai_matmul_2.py"],
       "min_xpus": 1,
       "timeout": 3600
+    },
+
+    {
+      "id": "benchmark-ezpz-test-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "ddp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "test", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
+      "id": "benchmark-ezpz-test-m",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "ddp", "performance", "bounded", "slow", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "test", "m"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 2700
+    },
+    {
+      "id": "benchmark-ezpz-test-l",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "ddp", "performance", "bounded", "slow", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "test", "l"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 3600
+    },
+    {
+      "id": "benchmark-ezpz-vit-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "vit", "fsdp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "vit", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
+      "id": "benchmark-ezpz-fsdp-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "fsdp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "fsdp", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo", "torchvision"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
+      "id": "benchmark-ezpz-diffusion-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "diffusion", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "diffusion", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 1800
+    },
+    {
+      "id": "benchmark-ezpz-fsdp-tp-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "fsdp", "tensor-parallel", "performance", "bounded", "slow", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "fsdp_tp", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 3600
+    },
+    {
+      "id": "benchmark-ezpz-hf",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "huggingface", "llm", "fsdp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "hf"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["datasets", "ezpz", "plotext", "torch", "torchinfo", "transformers"],
+      "min_xpus": 2,
+      "timeout": 2700
+    },
+    {
+      "id": "benchmark-ezpz-hf-trainer",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "huggingface", "llm", "trainer", "fsdp", "performance", "bounded", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "hf_trainer"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["datasets", "ezpz", "plotext", "torch", "torchinfo", "transformers"],
+      "min_xpus": 2,
+      "timeout": 2700
     }
   ]
 }
