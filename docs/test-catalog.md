@@ -43,34 +43,33 @@ so the per-case artifact path can only be read from
 `FRAMEWORKS_TEST_ARTIFACT_DIR` at runtime. Without the wrapper, `ezpz
 benchmark` writes into `./outputs/` in the working tree.
 
-**Refusing the one unbounded example.** `ezpz benchmark` forwards only
-`--model`, and the examples do not share a bounding flag, so each one was
-measured at the defaults `ezpz benchmark` actually uses (one Aurora node, 12
-ranks, `--model s`, 900s cap):
+**Bounding.** `ezpz benchmark` forwards only `--model`, and the examples do
+not share a bounding flag, so each was measured at those defaults (one Aurora
+node, 12 ranks, `--model s`):
 
-| example | bound | measured | registered |
+| example | bound | at `ezpz benchmark` defaults | how it is registered |
 |---|---|---|---|
-| `test` | `--train-iters` (400 at s/m/l) | 48s | yes |
-| `vit` | `--max-iters` (default 224) | 46s | yes |
-| `fsdp` | `--epochs` 10 over MNIST | 53s | yes |
-| `diffusion` | `--train-steps` (default 400) | 69s | yes |
-| `hf` | `--max-steps` (HF `TrainingArguments`) | 72s | yes, direct launch |
-| `hf_trainer` | `--max-steps` (HF `TrainingArguments`) | 42s | yes, direct launch |
-| `fsdp_tp` | `--epochs` 5 over full imdb | **TIMEOUT at 900s** | **no** |
+| `test` | `--train-iters` (400 at s/m/l) | 48s | `ezpz benchmark` |
+| `vit` | `--max-iters` (default 224) | 46s | `ezpz benchmark` |
+| `fsdp` | `--epochs` 10 over MNIST | 65s | `ezpz benchmark` |
+| `diffusion` | `--train-steps` (default 400) | 91s | `ezpz benchmark` |
+| `fsdp_tp` | `--epochs` 5 | **>600s** | direct launch, `--epochs 1` |
+| `hf` | `--max-steps` | — | direct launch, `--max-steps 20` |
+| `hf_trainer` | `--max-steps` | — | direct launch, `--max-steps 20` |
 
-Only `fsdp_tp` is genuinely unbounded: its cost scales with a 25k-row dataset
-at `seq_len` 2048 and nothing `ezpz benchmark` forwards caps it. `--epochs` by
-itself is not the tell — `fsdp` uses it too and finishes in under a minute
-because MNIST is a fixed size, and `diffusion` defaults to a toy corpus with
-`--train-steps 400`. The wrapper therefore refuses `fsdp_tp` with exit 2 and
-points at running it in a dedicated job with an explicit budget:
+Only `fsdp_tp` needs a budget imposed on it. At `--epochs 5` it exceeds 600s
+on imdb *and* on mnist, so the corpus is not the driver — the epoch count is.
+Capped at one epoch it completes (419s imdb, 537s random), so it is
+registered through a direct launch rather than left to run until a job wall
+kills it. Both knobs are overridable:
 
-```bash
-ezpz launch -- python3 -m ezpz.examples.fsdp_tp --model s --epochs 1
-```
+| variable | default |
+|---|---|
+| `EZPZ_BENCH_FSDP_TP_DATASET` | `random` |
+| `EZPZ_BENCH_FSDP_TP_EPOCHS` | `1` |
 
-It also treats "exit 0 but no `timings.csv`" as a failure, so an example that
-silently produces no measurement cannot pass.
+The wrapper also **fails a run that exits 0 without writing a `timings.csv`**,
+so an example that produces no measurement cannot pass silently.
 
 `hf` and `hf_trainer` are registered, but they do not go through `ezpz
 benchmark`: that path hard-codes `meta-llama/Llama-3.2-1B`, which is gated (an

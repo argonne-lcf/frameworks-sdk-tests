@@ -9,21 +9,22 @@
 #      can only be picked up from FRAMEWORKS_TEST_ARTIFACT_DIR at runtime.
 #      Without it, `ezpz benchmark` writes into ./outputs/ in the repo.
 #
-#   2. Refuse to launch the one example that is genuinely unbounded. `ezpz
-#      benchmark` passes only `--model`, and the examples do not share a
-#      bounding flag, so each was measured at the defaults `ezpz benchmark`
-#      actually uses (one Aurora node, 12 ranks, --model s, 900s cap):
+#   2. Bound the examples that `ezpz benchmark` cannot bound itself. It
+#      forwards only `--model`, and the examples do not share a bounding flag,
+#      so each was measured at its `ezpz benchmark` defaults (one Aurora node,
+#      12 ranks, --model s):
 #
 #        test       --train-iters (400 at s/m/l)   48s
 #        vit        --max-iters (default 224)      46s
-#        fsdp       --epochs 10 over MNIST         53s  (fixed-size corpus)
-#        diffusion  --train-steps (default 400)    69s  (toy corpus default)
-#        fsdp_tp    --epochs 5 over full imdb      TIMEOUT at 900s
+#        fsdp       --epochs 10 over MNIST         65s
+#        diffusion  --train-steps (default 400)    91s
+#        fsdp_tp    --epochs 5                     TIMEOUT (>600s on any dataset)
 #
-#      Only fsdp_tp is unbounded: its cost scales with a 25k-row dataset at
-#      seq_len 2048 and nothing `ezpz benchmark` forwards caps it. `--epochs`
-#      alone is not the tell -- fsdp uses it too and finishes in under a
-#      minute because MNIST is a fixed size.
+#      fsdp_tp is the one that needs help: at --epochs 5 it exceeds 600s on
+#      imdb *and* on mnist, so the corpus is not the driver -- the epoch count
+#      is. Capped at --epochs 1 it completes (419s imdb / 537s random), so it
+#      is registered through a direct launch with an explicit budget rather
+#      than refused.
 #
 #   3. Run the HuggingFace examples off a public model with an explicit step
 #      budget. `ezpz benchmark --run hf` hard-codes meta-llama/Llama-3.2-1B
@@ -37,20 +38,11 @@ set -uo pipefail
 EXAMPLE=${1:-test}
 MODEL=${2:-s}
 
-# Validate the example BEFORE checking for ezpz: refusing an unbounded example
+# Validate the example BEFORE checking for ezpz: rejecting an unknown example
 # is a property of the request, not of the environment, so it must report the
 # same way whether or not ezpz happens to be installed.
 case "${EXAMPLE}" in
-test | vit | fsdp | diffusion | hf | hf_trainer) ;;
-fsdp_tp)
-    echo "refusing to run 'fsdp_tp' from the test suite: it trains for" >&2
-    echo "--epochs (default 5) over the full imdb dataset at seq_len 2048," >&2
-    echo "so its runtime is set by the corpus and nothing 'ezpz benchmark'" >&2
-    echo "forwards can bound it. Measured: still running at a 900s cap." >&2
-    echo "Run it in a dedicated job with an explicit budget instead, e.g.:" >&2
-    echo "  ezpz launch -- python3 -m ezpz.examples.fsdp_tp --model ${MODEL} --epochs 1" >&2
-    exit 2
-    ;;
+test | vit | fsdp | diffusion | fsdp_tp | hf | hf_trainer) ;;
 *)
     echo "unknown or unsupported example: ${EXAMPLE}" >&2
     exit 2
@@ -71,6 +63,12 @@ HF_MODEL=${EZPZ_BENCH_HF_MODEL:-Qwen/Qwen2.5-0.5B-Instruct}
 HF_DATASET=${EZPZ_BENCH_HF_DATASET:-eliplutchok/fineweb-small-sample}
 HF_MAX_STEPS=${EZPZ_BENCH_HF_MAX_STEPS:-20}
 HF_BLOCK_SIZE=${EZPZ_BENCH_HF_BLOCK_SIZE:-1024}
+
+# fsdp_tp's cost is driven by its epoch count, not its corpus: at the
+# `ezpz benchmark` default of --epochs 5 it exceeds 600s on imdb and on mnist
+# alike. One epoch completes (419s imdb / 537s random on one node).
+FSDP_TP_DATASET=${EZPZ_BENCH_FSDP_TP_DATASET:-random}
+FSDP_TP_EPOCHS=${EZPZ_BENCH_FSDP_TP_EPOCHS:-1}
 
 run_hf_example() {
     # `ezpz benchmark` cannot express these overrides, so drive the module
@@ -112,11 +110,34 @@ run_hf_example() {
     return "${rc}"
 }
 
+run_fsdp_tp() {
+    # `ezpz benchmark` runs this at --epochs 5, which exceeds 600s on both
+    # imdb and mnist, so it cannot be driven through `ezpz benchmark`. Launch
+    # it directly with an explicit epoch budget and synthesize the same
+    # timings.csv contract.
+    local t0=$SECONDS
+    EZPZ_TRACKER_BACKENDS=none WANDB_DISABLED=1 \
+        ezpz launch -- python3 -m ezpz.examples.fsdp_tp \
+        --model "${MODEL}" \
+        --dataset "${FSDP_TP_DATASET}" \
+        --epochs "${FSDP_TP_EPOCHS}"
+    local rc=$? el=$((SECONDS - t0))
+    printf 'name,exit_code,wall_seconds\nfsdp_tp,%d,%d\n' "${rc}" "${el}" \
+        >"${OUTDIR}/timings.csv"
+    return "${rc}"
+}
+
 case "${EXAMPLE}" in
 hf | hf_trainer)
     echo "ezpz ${EXAMPLE}: model=${HF_MODEL} dataset=${HF_DATASET}" \
         "max_steps=${HF_MAX_STEPS} outdir=${OUTDIR}"
     run_hf_example "${EXAMPLE}"
+    rc=$?
+    ;;
+fsdp_tp)
+    echo "ezpz fsdp_tp: model=${MODEL} dataset=${FSDP_TP_DATASET}" \
+        "epochs=${FSDP_TP_EPOCHS} outdir=${OUTDIR}"
+    run_fsdp_tp
     rc=$?
     ;;
 *)

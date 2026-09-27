@@ -759,6 +759,16 @@
       "timeout": 1800
     },
     {
+      "id": "benchmark-ezpz-fsdp-tp-s",
+      "suite": "benchmark",
+      "tags": ["ezpz", "training", "fsdp", "tensor-parallel", "performance", "bounded", "slow", "xpu"],
+      "command": ["bash", "tests/workloads/ezpz/run_benchmark.sh", "fsdp_tp", "s"],
+      "required_commands": ["ezpz", "mpiexec"],
+      "required_python_modules": ["ezpz", "plotext", "torch", "torchinfo"],
+      "min_xpus": 2,
+      "timeout": 2700
+    },
+    {
       "id": "benchmark-ezpz-hf",
       "suite": "benchmark",
       "tags": ["ezpz", "training", "huggingface", "llm", "fsdp", "performance", "bounded", "xpu"],
