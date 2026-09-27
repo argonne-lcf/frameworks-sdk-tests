@@ -174,9 +174,9 @@ code paths, and one passing does not imply the others:
 - `torchrun`: ezpz reads `RANK`/`LOCAL_RANK` instead.
 - `ezpz launch`: ezpz *constructs* the launch itself — it resolves the PBS
   hostfile, computes the rank geometry, builds the CPU-binding and `mpiexec`
-  flags, and only then execs the payload. This is the path most ALCF jobs
-  actually take, so an SDK change that breaks ezpz's hostfile parsing or
-  binding logic is invisible to the other two cases.
+  flags, and only then execs the payload. It is the launcher the other two
+  cases never exercise, so an SDK change that breaks ezpz's hostfile parsing
+  or binding logic is invisible to them.
 
 `ezpz-launch` passes explicit `--nproc/--nproc_per_node` so the case is
 reproducible at any allocation size. Dropping those flags makes ezpz derive the

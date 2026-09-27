@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate ezpz's distributed bring-up against the SDK's own XCCL stack.
 
-``ezpz.setup_torch()`` is the single call most ALCF PyTorch jobs use to go from
+``ezpz.setup_torch()`` is the call an ezpz-based script uses to go from
 "N processes exist" to "a working process group on the right device". It reads
 the scheduler environment (PALS/PBS, or torchrun's), picks the device, picks the
 backend, and initializes the process group. Every one of those steps can succeed

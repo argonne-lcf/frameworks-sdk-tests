@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Validate that ezpz resolves this SDK's accelerator, backend, and scheduler.
 
-ezpz is the launch/distributed-setup layer most ALCF PyTorch jobs sit on, but it
-is *not* part of the Frameworks SDK: it is installed per-user, so the pairing of
-"this SDK build" with "the ezpz on PYTHONPATH" is exactly what goes untested
-until a job fails at scale. This case pins that pairing down.
+ezpz is a distributed-setup and launcher package used with PyTorch on ALCF
+systems. It is not part of the Frameworks SDK: it is installed per-user, so
+the pairing of "this SDK build" with "the ezpz on PYTHONPATH" is exactly what
+goes untested until a job fails at scale. This case pins that pairing down.
 
 It is deliberately single-process and MPI-free. ``ezpz.get_rank()`` and anything
 else that reaches ``mpi4py.MPI`` aborts the interpreter outside an allocation
@@ -24,7 +24,7 @@ import os
 from typing import Callable, List, Tuple
 
 
-# Attributes the suite's distributed cases and ordinary ALCF job scripts rely
+# Attributes the suite's distributed cases and typical ezpz job scripts rely
 # on. Resolving them exercises ezpz's lazy __getattr__ surface, which silently
 # swallows a submodule that fails to import -- a missing dependency therefore
 # shows up here as a missing attribute rather than as a stack trace at scale.
