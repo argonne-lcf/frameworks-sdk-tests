@@ -21,7 +21,8 @@ and therefore is not launched by a normal suite selection.
   `mpiexec` and `torchrun`.
 - `regression` contains the GQA SDPA compiler crash, its baseline, the full
   TP/FSDP SDPA reproducer, Gamma sampling, DeepSpeed and IPEX JIT builds, vLLM
-  registry inspection, and the XCCL `empty_cache` memory leak.
+  registry inspection, the XE2 grouped-GEMM D-store reproducer, and the XCCL
+  `empty_cache` memory leak.
 - `workload` contains checkpoint I/O, 1-D and 2-D DTensor redistribution,
   bounded MNIST/ResNet/Transformer training, DeepSpeed miniGPT, TorchComms,
   XPU sequence parallelism, separate MoE reference/Triton pytest gates, a
@@ -52,13 +53,15 @@ defaults. Measured on one Aurora node, 12 ranks, `--model s`:
 | `vit` | `--max-iters` (default 224) | 46s |
 | `fsdp` | `--epochs` 10 over MNIST | 65s |
 | `diffusion` | `--train-steps` (default 400) | 91s |
-| `fsdp_tp` | `--epochs` 5 over imdb | 1884s (~31 min) |
+| `fsdp_tp` | `--epochs` 1 over imdb (ezpz ≥0.28.1; was 5) | _pending re-measurement_ |
 | `hf` / `hf_trainer` | `--max-steps` 100 | 109s / 42s |
 
-`fsdp_tp` is the expensive one — at `seq_len` 2048, batch size 4, 12 ranks,
-one imdb epoch is roughly 25000/(4×12) ≈ 520 steps, so five epochs takes about
-half an hour. It carries the `slow` tag and a 3600s timeout; nothing about it
-needs special handling.
+`fsdp_tp` was the expensive one under ezpz <0.28.1 — at `seq_len` 2048, batch
+size 4, 12 ranks, one imdb epoch is roughly 25000/(4×12) ≈ 520 steps, and the
+old `--epochs 5` default took 1884s (~31 min). ezpz 0.28.1 changed the default
+to one epoch (saforem2/ezpz#260); the measured one-epoch wall is recorded above
+once re-validated on Aurora. It still carries the `slow` tag; its timeout is
+sized from the one-epoch measurement, not the old five-epoch run.
 
 The wrapper **fails a run that exits 0 without writing a `timings.csv`**, so an
 example that produces no measurement cannot pass silently. It rejects only
@@ -120,11 +123,13 @@ package the SDK does not provide.
 Because the version floats, check it before filing a failure — a stale
 user-site install reproduces bugs that were fixed upstream long ago.
 `ezpz-environment` prints `ezpz=<version>` and `ezpz_path=[...]` first for
-exactly this reason. These cases were validated against ezpz 0.27.6; upgrade
-before investigating a failure:
+exactly this reason. These cases were originally validated against ezpz
+0.27.6; the `fsdp_tp` benchmark timeout assumes **ezpz ≥0.28.1** (the first
+release with `--epochs 1` as the `fsdp_tp` default). Upgrade before
+investigating a failure:
 
 ```bash
-python -m pip install --user --upgrade git+https://github.com/saforem2/ezpz
+python -m pip install --user --upgrade "git+https://github.com/saforem2/ezpz@v0.31.1"
 ```
 
 Two properties of ezpz shape how these tests are registered:
