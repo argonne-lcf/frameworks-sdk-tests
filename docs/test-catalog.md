@@ -53,15 +53,18 @@ defaults. Measured on one Aurora node, 12 ranks, `--model s`:
 | `vit` | `--max-iters` (default 224) | 46s |
 | `fsdp` | `--epochs` 10 over MNIST | 65s |
 | `diffusion` | `--train-steps` (default 400) | 91s |
-| `fsdp_tp` | `--epochs` 1 over imdb (ezpz ≥0.28.1; was 5) | _pending re-measurement_ |
+| `fsdp_tp` | `--epochs` 1 over imdb (ezpz ≥0.28.1; was 5) | 343s |
 | `hf` / `hf_trainer` | `--max-steps` 100 | 109s / 42s |
 
 `fsdp_tp` was the expensive one under ezpz <0.28.1 — at `seq_len` 2048, batch
 size 4, 12 ranks, one imdb epoch is roughly 25000/(4×12) ≈ 520 steps, and the
 old `--epochs 5` default took 1884s (~31 min). ezpz 0.28.1 changed the default
-to one epoch (saforem2/ezpz#260); the measured one-epoch wall is recorded above
-once re-validated on Aurora. It still carries the `slow` tag; its timeout is
-sized from the one-epoch measurement, not the old five-epoch run.
+to one epoch (saforem2/ezpz#260). Re-measured on Aurora with ezpz 0.31.1
+(frameworks/2026.1.0, job 8935622, through this suite's wrapper):
+**343s**, versus 1884s for the old five-epoch default. It still carries
+the `slow` tag and the standard 1800s benchmark timeout, which now
+gives >5x headroom over the 343s measurement instead of the ~1.9x the
+old five-epoch run had under the previous 3600s cap.
 
 The wrapper **fails a run that exits 0 without writing a `timings.csv`**, so an
 example that produces no measurement cannot pass silently. It rejects only
