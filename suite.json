@@ -425,6 +425,16 @@
       "min_nodes": 2,
       "timeout": 900
     },
+    {
+      "id": "regression-module-tracker-shutdown-sigabrt",
+      "suite": "regression",
+      "tags": ["pytorch", "autograd", "shutdown", "xpu"],
+      "command": ["bash", "tests/regressions/module_tracker_shutdown/run_repro.sh"],
+      "required_commands": ["taskset"],
+      "required_python_modules": ["torch"],
+      "min_xpus": 1,
+      "timeout": 600
+    },
 
     {
       "id": "workload-checkpoint-io",
