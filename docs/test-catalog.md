@@ -56,6 +56,7 @@ The descriptions below focus on what each test validates or reproduces.
 | `regression` | `regression-vllm-model-inspection` | vLLM model-registry inspection and subprocess crash |
 | `regression` | `regression-vllm-xpu-kernels-grouped-gemm` | XE2 grouped-GEMM D-store failure |
 | `regression` | `regression-xccl-allgather-empty-cache` | XCCL all-gather `empty_cache` memory leak |
+| `regression` | `regression-fsdp-shutdown-libfabric-memhooks` | FSDP libfabric memhooks shutdown SIGSEGV ([#180](https://github.com/argonne-lcf/AuroraBugTracking/issues/180)) |
 | `workload` | `workload-checkpoint-io` | MPI checkpoint I/O validation |
 | `workload` | `workload-dtensor` | One-dimensional DTensor redistribution |
 | `workload` | `workload-dtensor-2d-redistribute` | Two-dimensional DTensor-mesh redistribution |
