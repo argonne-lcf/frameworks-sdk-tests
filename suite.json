@@ -403,6 +403,38 @@
       "min_xpus": 2,
       "timeout": 2400
     },
+    {
+      "id": "regression-fsdp-shutdown-libfabric-memhooks",
+      "suite": "regression",
+      "tags": ["pytorch", "fsdp", "xccl", "libfabric", "shutdown", "distributed", "slow", "xpu"],
+      "command": ["bash", "tests/regressions/fsdp_shutdown_libfabric_memhooks/run_repro.sh"],
+      "required_commands": ["mpiexec"],
+      "required_python_modules": ["torch"],
+      "min_xpus": 12,
+      "min_nodes": 2,
+      "timeout": 900
+    },
+    {
+      "id": "regression-fsdp-shutdown-autograd-sigabrt",
+      "suite": "regression",
+      "tags": ["pytorch", "fsdp", "xccl", "autograd", "shutdown", "distributed", "slow", "xpu"],
+      "command": ["bash", "tests/regressions/fsdp_shutdown_autograd_sigabrt/run_repro.sh"],
+      "required_commands": ["mpiexec"],
+      "required_python_modules": ["torch"],
+      "min_xpus": 12,
+      "min_nodes": 2,
+      "timeout": 900
+    },
+    {
+      "id": "regression-module-tracker-shutdown-sigabrt",
+      "suite": "regression",
+      "tags": ["pytorch", "autograd", "shutdown", "xpu"],
+      "command": ["bash", "tests/regressions/module_tracker_shutdown/run_repro.sh"],
+      "required_commands": ["taskset"],
+      "required_python_modules": ["torch"],
+      "min_xpus": 1,
+      "timeout": 600
+    },
 
     {
       "id": "workload-checkpoint-io",

@@ -60,8 +60,9 @@ Suites are intentionally separated by cost and purpose:
 - `harness`: CPU/gloo and fault-injection checks for the collective validator.
 - `distributed`: two- and four-XPU PyTorch/XCCL collectives, including
   subgroup communicator layouts, plus direct GPU-aware MPI.
-- `regression`: SDPA, JIT, vLLM, Gamma sampling, grouped-GEMM store, and
-  XCCL memory regressions.
+- `regression`: SDPA, JIT, vLLM, Gamma sampling, grouped-GEMM store, XCCL
+  memory, FSDP libfabric memhooks shutdown (SIGSEGV), FSDP autograd callback
+  shutdown (SIGABRT), and ModuleTracker interpreter shutdown (SIGABRT).
 - `workload`: bounded DDP/FSDP/1-D and 2-D DTensor, DeepSpeed, TorchComms,
   sequence parallelism, MoE, and split CosmicTagger application tests.
 - `benchmark`: opt-in bounded TorchComms/c10d collectives and GEMM performance

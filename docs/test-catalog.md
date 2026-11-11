@@ -1,32 +1,89 @@
 # Test catalog notes
 
-`suite.json` is the executable catalog. This document covers retained source
+`suite.json` is the authoritative executable catalog. See the README's
+[test-selection guide](../README.md#selecting-tests) for suite guidance and
+`./run_tests list` for registered test IDs, commands, and tags.
+
+This document summarizes registered tests by suite and covers retained source
 that needs an argument, model, scheduler, or investigation-specific decision
 and therefore is not launched by a normal suite selection.
 
-## Registered suites
+## Registered tests
 
-- `smoke` checks the core package ABI/import surface, PyTorch XPU/XCCL,
-  mpi4py, dpctl, dpnp, and PyTorch/dpnp DLPack sharing.
-- `optional-imports` checks science, LLM, communication, and legacy Intel/IPEX
-  package groups without making them part of the default acceptance gate.
-- `harness` exercises the collective validator on CPU/gloo, through PALS-style
-  environment variables, and with expected fault injection.
-- `distributed` contains correctness-aware all-reduce, all-gather,
-  all-to-all, uneven all-to-all, reduce-scatter, collective/compute overlap,
-  five P2P modes, independent-stream overlap, five expert/pipeline/disjoint/
-  overlapping subgroup communicator modes, and direct GPU-buffer
-  `mpi4py.Allreduce` validation.
-- `regression` contains the GQA SDPA compiler crash, its baseline, the full
-  TP/FSDP SDPA reproducer, Gamma sampling, DeepSpeed and IPEX JIT builds, vLLM
-  registry inspection, the XE2 grouped-GEMM D-store reproducer, and the XCCL
-  `empty_cache` memory leak.
-- `workload` contains checkpoint I/O, 1-D and 2-D DTensor redistribution,
-  bounded MNIST/ResNet/Transformer training, DeepSpeed miniGPT, TorchComms,
-  XPU sequence parallelism, separate MoE reference/Triton pytest gates, a
-  bounded MoE training probe, and dependency-split CosmicTagger pytest cases.
-- `benchmark` contains bounded two-rank all-reduce measurements for the
-  TorchComms, c10d, and c10d-through-TorchComms adapters, plus GEMM sweeps.
+Use `./run_tests list --suite SUITE` for executable commands and source paths.
+The descriptions below focus on what each test validates or reproduces.
+
+| Suite | Registered test | Purpose |
+| --- | --- | --- |
+| `smoke` | `imports-core` | Core package ABI and import surface |
+| `smoke` | `pytorch-xpu` | PyTorch XPU and XCCL smoke validation |
+| `smoke` | `mpi4py-single` | Single-process mpi4py and MPI environment validation |
+| `smoke` | `dpctl-devices` | dpctl device discovery |
+| `smoke` | `dpnp-array` | dpnp array creation and computation |
+| `smoke` | `dpnp-torch-dlpack` | PyTorch/dpnp DLPack sharing |
+| `optional-imports` | `imports-science` | NumPy, SciPy, h5py, scikit-learn, JAX, and TensorFlow imports |
+| `optional-imports` | `imports-llm` | DeepSpeed, Transformers, Triton, vLLM, and vLLM XPU kernel imports |
+| `optional-imports` | `imports-comms` | oneCCL PyTorch bindings and TorchComms imports |
+| `optional-imports` | `imports-intel-extension` | Legacy Intel Extension for PyTorch import |
+| `harness` | `collectives-cpu` | Collective-validator correctness on CPU/gloo |
+| `harness` | `collectives-pals-env-cpu` | Collective validation through PALS-style environment variables |
+| `harness` | `collectives-validator-negative` | Expected-fault injection and validator failure reporting |
+| `distributed` | `torch-allreduce` | Correctness-aware two-XPU all-reduce |
+| `distributed` | `torch-allgather` | Correctness-aware two-XPU all-gather |
+| `distributed` | `torch-alltoall` | Correctness-aware two-XPU all-to-all |
+| `distributed` | `torch-alltoall-uneven` | Correctness-aware uneven two-XPU all-to-all |
+| `distributed` | `torch-reduce-scatter` | Correctness-aware two-XPU reduce-scatter |
+| `distributed` | `torch-overlap-allreduce` | All-reduce and compute overlap |
+| `distributed` | `torch-overlap-allgather` | All-gather and compute overlap |
+| `distributed` | `torch-p2p-ring` | Ring point-to-point communication |
+| `distributed` | `torch-p2p-ring-async` | Asynchronous ring point-to-point communication |
+| `distributed` | `torch-p2p-ring-async-symmetric` | Symmetric asynchronous ring deadlock regression |
+| `distributed` | `torch-p2p-ring-batch` | Batched ring point-to-point communication |
+| `distributed` | `torch-p2p-batch` | Batched point-to-point communication |
+| `distributed` | `torch-subgroups-ep` | Expert-parallel subgroup collectives on four XPUs |
+| `distributed` | `torch-subgroups-pp` | Pipeline-parallel subgroup collectives on four XPUs |
+| `distributed` | `torch-subgroups-sequential` | Sequential subgroup ordering |
+| `distributed` | `torch-subgroups-disjoint` | Disjoint subgroup concurrency |
+| `distributed` | `torch-subgroups-overlap` | Overlapping subgroup communication and ordering |
+| `distributed` | `torch-streams` | Independent-stream copy/compute overlap |
+| `distributed` | `mpi4py-xpu-allreduce` | Direct GPU-buffer `mpi4py.Allreduce` validation |
+| `regression` | `regression-sdpa-gqa-stride` | GQA SDPA compiler crash |
+| `regression` | `regression-sdpa-non-gqa-baseline` | Non-GQA SDPA baseline |
+| `regression` | `regression-sdpa-tp-fsdp` | Full TP/FSDP SDPA reproducer |
+| `regression` | `regression-gamma-large-sample` | Large Gamma-sample validation |
+| `regression` | `regression-deepspeed-fused-adam-jit` | DeepSpeed FusedAdam JIT build |
+| `regression` | `regression-ipex-pybind11-jit` | IPEX pybind11 JIT build |
+| `regression` | `regression-vllm-model-inspection` | vLLM model-registry inspection and subprocess crash |
+| `regression` | `regression-vllm-xpu-kernels-grouped-gemm` | XE2 grouped-GEMM D-store failure |
+| `regression` | `regression-xccl-allgather-empty-cache` | XCCL all-gather `empty_cache` memory leak |
+| `regression` | `regression-fsdp-shutdown-libfabric-memhooks` | FSDP libfabric memhooks shutdown SIGSEGV ([#180](https://github.com/argonne-lcf/AuroraBugTracking/issues/180)) |
+| `regression` | `regression-fsdp-shutdown-autograd-sigabrt` | FSDP autograd callback SIGABRT during interpreter finalization ([#182](https://github.com/argonne-lcf/AuroraBugTracking/issues/182)) |
+| `regression` | `regression-module-tracker-shutdown-sigabrt` | Single-process ModuleTracker SIGABRT during interpreter finalization ([#182](https://github.com/argonne-lcf/AuroraBugTracking/issues/182)) |
+| `workload` | `workload-checkpoint-io` | MPI checkpoint I/O validation |
+| `workload` | `workload-dtensor` | One-dimensional DTensor redistribution |
+| `workload` | `workload-dtensor-2d-redistribute` | Two-dimensional DTensor-mesh redistribution |
+| `workload` | `workload-mnist-ddp` | Bounded MNIST DDP training |
+| `workload` | `workload-resnet50-ddp` | Bounded ResNet-50 DDP training |
+| `workload` | `workload-resnet50-fsdp` | Bounded ResNet-50 FSDP training |
+| `workload` | `workload-transformer-ddp` | Bounded Transformer DDP training |
+| `workload` | `workload-minigpt-deepspeed` | Bounded DeepSpeed miniGPT training |
+| `workload` | `workload-sequence-parallelism` | XPU sequence-parallel compute pattern |
+| `workload` | `workload-torchcomms-xccl` | TorchComms/XCCL compatibility |
+| `workload` | `workload-moe-reference-pytest` | MoE pytest cases against the CPU reference implementation |
+| `workload` | `workload-moe-triton-xpu-pytest` | MoE Triton-required and XPU pytest cases |
+| `workload` | `workload-moe-train-xpu` | Bounded single-XPU MoE training with loss, gradient, and parameter-update checks |
+| `workload` | `workload-cosmictagger-io-synthetic` | CosmicTagger synthetic-data I/O tests |
+| `workload` | `workload-cosmictagger-io-larcv` | CosmicTagger LArCV-data I/O tests |
+| `workload` | `workload-cosmictagger-torch-synthetic` | CosmicTagger PyTorch synthetic-data training and inference |
+| `workload` | `workload-cosmictagger-torch-larcv` | CosmicTagger PyTorch LArCV-data training and inference |
+| `workload` | `workload-cosmictagger-tensorflow-synthetic` | CosmicTagger TensorFlow synthetic-data training and inference |
+| `workload` | `workload-cosmictagger-tensorflow-larcv` | CosmicTagger TensorFlow LArCV-data training and inference |
+| `workload` | `workload-cosmictagger-network-parity` | CosmicTagger network creation and PyTorch/TensorFlow parity |
+| `benchmark` | `benchmark-torchcomms-perf` | Bounded two-rank TorchComms all-reduce measurements |
+| `benchmark` | `benchmark-c10d-perf` | Bounded two-rank c10d all-reduce measurements |
+| `benchmark` | `benchmark-c10d-torchcomms-perf` | Bounded two-rank c10d-through-TorchComms all-reduce measurements |
+| `benchmark` | `benchmark-gemm-torch` | PyTorch forward GEMM comparison |
+| `benchmark` | `benchmark-gemm-eleutherai` | EleutherAI forward GEMM comparison |
 
 ## Retained manual sources
 
