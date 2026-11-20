@@ -1,48 +1,33 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # pyre-unsafe
 
-import collections.abc
 import csv
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Literal, Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import torch
-import torch.distributed.config as dist_config
-import torchcomms
 from torch import distributed as dist
 
 
 class CommAdapter:
     def __init__(
         self,
-        name: Literal["torchcomms", "c10d", "c10d_torchcomms"],
+        name: str = "c10d",
         comm_name: Optional[str] = "collective_perf_test",
     ):
+        if name != "c10d":
+            raise ValueError("Only the native PyTorch Distributed (c10d) adapter is supported")
         self.name = name
         self.comm_name = comm_name
         self.initialized = False
         self.dist_comm = None
 
-    def init(
-        self,
-        backend: str,
-        device: torch.device,
-        hints: Optional[collections.abc.Mapping] = None,
-    ) -> None:
-        if self.name == "torchcomms":
-            self.dist_comm = torchcomms.new_comm(
-                backend,
-                device,
-                name=self.comm_name,
-                hints=hints,
-            )
-        elif self.name.startswith("c10d"):
-            if self.name == "c10d_torchcomms":
-                dist_config.use_torchcomms = True
-            dist.init_process_group(backend=backend, init_method="env://")
-            self.dist_comm = dist
+    def init(self, backend: str, device: torch.device) -> None:
+        del device  # Device selection is performed before process-group creation.
+        dist.init_process_group(backend=backend, init_method="env://")
+        self.dist_comm = dist
         self.initialized = True
 
     def _require_initialized(self) -> None:
@@ -56,11 +41,10 @@ class CommAdapter:
     }
 
     def run_collective(self, collective_fn, *args, **kwargs) -> None:
-        """Dispatch a collective on the underlying adapter.
+        """Dispatch a collective through native c10d.
 
-        ``async_op`` is consumed here (not forwarded to torchcomms / c10d
-        verbatim): when True, the adapter awaits the returned handle before
-        returning. For c10d send/recv this also rewrites the call to
+        ``async_op`` is consumed here: when True, the adapter awaits the returned
+        handle before returning. For c10d send/recv this also rewrites the call to
         ``isend`` / ``irecv``. Callers must pass ``async_op`` as a keyword.
 
         For hot loops, prefer :meth:`resolve_collective` to lift the dispatch
@@ -77,10 +61,9 @@ class CommAdapter:
 
         Returns ``(call, args, kwargs)`` where ``call(*args, **kwargs)`` runs
         the collective and waits on the handle (matching :meth:`run_collective`
-        semantics). All adapter-specific name mapping, arg reshaping, and
-        ``async_op`` handling is performed once here, so the returned callable
-        can be invoked tightly in a measurement loop without per-iteration
-        Python overhead.
+        semantics). All c10d name mapping, arg reshaping, and ``async_op``
+        handling is performed once here, so the returned callable can be invoked
+        tightly in a measurement loop without per-iteration Python overhead.
 
         ``async_op`` must be passed as a keyword.
         """
@@ -100,24 +83,16 @@ class CommAdapter:
     def _resolve(self, collective_fn, args, kwargs, async_op):
         """Compute the bound callable plus adjusted args/kwargs for one call."""
         self._require_initialized()
-        fn_name = collective_fn
-        if self.name.startswith("c10d"):
-            fn_name = self._C10D_NAME_MAP.get(collective_fn, collective_fn)
-            # gather: torchcomms takes (output_list, input_tensor, root, ...)
-            #         c10d takes (tensor, gather_list, dst, ...)
-            if collective_fn == "gather" and len(args) >= 2:
-                args = (args[1], args[0]) + args[2:]
-            # c10d send/recv have no async_op; use isend/irecv for async
-            if collective_fn in ("send", "recv"):
-                if async_op:
-                    fn_name = "i" + collective_fn
-            else:
-                kwargs["async_op"] = async_op
+        fn_name = self._C10D_NAME_MAP.get(collective_fn, collective_fn)
+        # gather: c10d takes (tensor, gather_list, dst, ...)
+        if collective_fn == "gather" and len(args) >= 2:
+            args = (args[1], args[0]) + args[2:]
+        # c10d send/recv have no async_op; use isend/irecv for async
+        if collective_fn in ("send", "recv"):
+            if async_op:
+                fn_name = "i" + collective_fn
         else:
-            # torchcomms: pass async_op positionally to match the pre-refactor
-            # call shape exactly. The pybind11 binding has fewer overheads on
-            # the positional path than on the kwargs path.
-            args = args + (async_op,)
+            kwargs["async_op"] = async_op
 
         try:
             bound = getattr(self.dist_comm, fn_name)
@@ -134,11 +109,7 @@ class CommAdapter:
 
     def get_size(self) -> int:
         self._require_initialized()
-        if self.name == "torchcomms":
-            return self.dist_comm.get_size()
-        elif self.name.startswith("c10d"):
-            return self.dist_comm.get_world_size()
-        raise NotImplementedError(f"get_size not implemented for adapter '{self.name}'")
+        return self.dist_comm.get_world_size()
 
     def get_backend(self) -> str:
         self._require_initialized()
@@ -146,26 +117,12 @@ class CommAdapter:
 
     def get_backend_version(self) -> str:
         self._require_initialized()
-        if self.name in ["torchcomms", "c10d_torchcomms"]:
-            try:
-                return self.dist_comm.get_backend_version()
-            except (AttributeError, NotImplementedError, RuntimeError):
-                return "n/a"
-        elif self.name.startswith("c10d"):
-            backend = self.get_backend()
-            if backend == "nccl" and torch.cuda.is_available():
-                return ".".join(str(v) for v in torch.cuda.nccl.version())
-            return "n/a"
+        backend = self.get_backend()
+        if backend == "nccl" and torch.cuda.is_available():
+            return ".".join(str(v) for v in torch.cuda.nccl.version())
         return "n/a"
 
-    _REDUCE_OP_MAP_TORCHCOMMS = {
-        "sum": torchcomms.ReduceOp.SUM,
-        "min": torchcomms.ReduceOp.MIN,
-        "max": torchcomms.ReduceOp.MAX,
-        "avg": torchcomms.ReduceOp.AVG,
-        "product": torchcomms.ReduceOp.PRODUCT,
-    }
-    _REDUCE_OP_MAP_C10D = {
+    _REDUCE_OP_MAP = {
         "sum": dist.ReduceOp.SUM,
         "min": dist.ReduceOp.MIN,
         "max": dist.ReduceOp.MAX,
@@ -174,25 +131,18 @@ class CommAdapter:
     }
 
     def get_reduce_op(self, op_name: str):
-        """Map a reduce op name to the appropriate ReduceOp type."""
+        """Map a reduce op name to the c10d ReduceOp type."""
         self._require_initialized()
-        op_map = (
-            self._REDUCE_OP_MAP_TORCHCOMMS
-            if self.name == "torchcomms"
-            else self._REDUCE_OP_MAP_C10D
-        )
-        if op_name not in op_map:
+        if op_name not in self._REDUCE_OP_MAP:
             raise ValueError(
-                f"Unknown reduce op '{op_name}'. Supported: {', '.join(op_map.keys())}"
+                f"Unknown reduce op '{op_name}'. Supported: "
+                f"{', '.join(self._REDUCE_OP_MAP.keys())}"
             )
-        return op_map[op_name]
+        return self._REDUCE_OP_MAP[op_name]
 
     def finalize(self) -> None:
         if self.initialized:
-            if self.name == "torchcomms":
-                self.dist_comm.finalize()
-            elif self.name.startswith("c10d"):
-                self.dist_comm.destroy_process_group()
+            self.dist_comm.destroy_process_group()
             self.initialized = False
 
 
@@ -201,8 +151,7 @@ class EnvInfo:
     device_type: str = None
     device_name: str = None
     torch_version: str = torch.__version__
-    torchcomms_version: str = "n/a"
-    comm_adapter_name: Literal["torchcomms", "c10d", "c10d_torchcomms"] = None
+    comm_adapter_name: str = "c10d"
     comm_backend_name: str = None
     comm_backend_version: str = None
 
@@ -210,7 +159,6 @@ class EnvInfo:
 @dataclass
 class BenchConfig:
     run_all_collectives: bool = False
-    run_all_comm_adapters: bool = False
     run_all_reduce_ops: bool = False
     reduce_op_explicit: bool = False
     # Message size range in bytes (powers of 2)
@@ -224,12 +172,13 @@ class BenchConfig:
     quiet: bool = False
     # CSV output file path (set dynamically per collective)
     csv_file: Optional[str] = None
-    # Base directory for CSV output (per-adapter subdir created underneath)
+    # Base directory for CSV output
     output_dir: Optional[str] = None
+
 
 @dataclass
 class BenchParams:
-    comm_adapter: Literal["torchcomms", "c10d", "c10d_torchcomms"] = "torchcomms"
+    comm_adapter: str = "c10d"
     collective_name: str = None
     num_ranks: int = 0
     async_op: bool = False
@@ -260,7 +209,6 @@ class BenchRecord:
     config: BenchConfig = field(default_factory=BenchConfig)
     params: BenchParams = field(default_factory=BenchParams)
     metrics: BenchMetrics = field(default_factory=BenchMetrics)
-
 
 class PerfTimer:
     def __init__(self):
@@ -315,7 +263,6 @@ _CSV_COLUMNS = [
     ("CommBackend", 13),
     ("CommBackendVersion", 20),
     ("TorchVersion", 30),
-    ("TorchCommsVersion", 20),
 ]
 
 
@@ -384,7 +331,6 @@ def log_perf_result(record: BenchRecord, rank: int) -> None:
         record.info.comm_backend_name,
         record.info.comm_backend_version,
         record.info.torch_version,
-        record.info.torchcomms_version,
     ]
     if not record.config.quiet:
         print("".join(f"{v:<{w}}" for v, (_, w) in zip(values, _CSV_COLUMNS)))
@@ -545,13 +491,9 @@ Options:
   --reduce-op <op>       - Reduction operation: sum, min, max, avg, product,
                            or 'all' to sweep every supported op (reduction
                            collectives only) (default: sum)
-  --c10d                 - Use c10d instead of torchcomms
-  --c10d-torchcomms      - Use c10d with torchcomms backend
-  --all-comm-adapters    - Run against all comm adapters (torchcomms, c10d,
-                           c10d_torchcomms)
+  --c10d                 - Use native PyTorch Distributed (default)
   --csv                  - Save results to CSV files (one per collective)
-  --output-dir <path>    - Base dir for CSV output (default: cwd); a
-                           per-adapter subdirectory is created underneath
+  --output-dir <path>    - Base dir for CSV output (default: cwd)
   --quiet, -q            - Suppress terminal output
   --help, -h             - Show this help message
 """)

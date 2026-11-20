@@ -93,8 +93,7 @@
       "command": [
         "python",
         "tests/smoke/package_imports.py",
-        "oneccl_bindings_for_pytorch",
-        "torchcomms"
+        "oneccl_bindings_for_pytorch"
       ]
     },
     {
@@ -502,12 +501,12 @@
       "timeout": 900
     },
     {
-      "id": "workload-torchcomms-xccl",
+      "id": "workload-c10d-xccl",
       "suite": "workload",
-      "tags": ["torchcomms", "xccl", "xpu"],
-      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/torchcomms/xccl_smoke.py"],
+      "tags": ["c10d", "xccl", "xpu"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/collectives/xccl_smoke.py"],
       "required_commands": ["torchrun"],
-      "required_python_modules": ["torchcomms"],
+      "required_python_modules": ["torch"],
       "min_xpus": 2,
       "timeout": 600
     },
@@ -605,34 +604,12 @@
     },
 
     {
-      "id": "benchmark-torchcomms-perf",
-      "suite": "benchmark",
-      "tags": ["torchcomms", "xccl", "xpu", "collective", "performance", "bounded"],
-      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/torchcomms/perf/collective_perf_test.py", "all_reduce", "--warmup", "1", "--iters", "3", "--min-size", "4", "--max-size", "1024"],
-      "required_commands": ["torchrun"],
-      "required_python_modules": ["torch", "torchcomms"],
-      "env": {"TEST_DEVICE": "xpu", "TEST_BACKEND": "xccl", "TEST_FULL_SWEEP": "0"},
-      "min_xpus": 2,
-      "timeout": 600
-    },
-    {
       "id": "benchmark-c10d-perf",
       "suite": "benchmark",
       "tags": ["c10d", "xccl", "xpu", "collective", "performance", "bounded"],
-      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/torchcomms/perf/collective_perf_test.py", "all_reduce", "--c10d", "--warmup", "1", "--iters", "3", "--min-size", "4", "--max-size", "1024"],
+      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/collectives/perf/collective_perf_test.py", "all_reduce", "--c10d", "--warmup", "1", "--iters", "3", "--min-size", "4", "--max-size", "1024"],
       "required_commands": ["torchrun"],
-      "required_python_modules": ["torch", "torchcomms"],
-      "env": {"TEST_DEVICE": "xpu", "TEST_BACKEND": "xccl", "TEST_FULL_SWEEP": "0"},
-      "min_xpus": 2,
-      "timeout": 600
-    },
-    {
-      "id": "benchmark-c10d-torchcomms-perf",
-      "suite": "benchmark",
-      "tags": ["c10d", "torchcomms", "xccl", "xpu", "collective", "performance", "bounded"],
-      "command": ["torchrun", "--standalone", "--nproc-per-node=2", "tests/workloads/torchcomms/perf/collective_perf_test.py", "all_reduce", "--c10d-torchcomms", "--warmup", "1", "--iters", "3", "--min-size", "4", "--max-size", "1024"],
-      "required_commands": ["torchrun"],
-      "required_python_modules": ["torch", "torchcomms"],
+      "required_python_modules": ["torch"],
       "env": {"TEST_DEVICE": "xpu", "TEST_BACKEND": "xccl", "TEST_FULL_SWEEP": "0"},
       "min_xpus": 2,
       "timeout": 600

@@ -22,12 +22,13 @@ and therefore is not launched by a normal suite selection.
   registry inspection, the XE2 grouped-GEMM D-store reproducer, and the XCCL
   `empty_cache` memory leak.
 - `workload` contains checkpoint I/O, 1-D and 2-D DTensor redistribution,
-  bounded MNIST/ResNet/Transformer training, DeepSpeed miniGPT, TorchComms,
-  XPU sequence parallelism, separate MoE reference/Triton pytest gates, a
-  bounded MoE training probe, and dependency-split CosmicTagger pytest cases.
-- `benchmark` contains bounded two-rank all-reduce measurements for the
-  TorchComms, c10d, and c10d-through-TorchComms adapters, plus GEMM sweeps.
-
+- `workload` contains checkpoint I/O, 1-D and 2-D DTensor redistribution,
+  bounded MNIST/ResNet/Transformer training, DeepSpeed miniGPT, native c10d/XCCL
+  collectives, XPU sequence parallelism, separate MoE reference/Triton pytest
+  gates, a bounded MoE training probe, and dependency-split CosmicTagger pytest
+  cases.
+- `benchmark` contains bounded two-rank all-reduce measurements through native
+  PyTorch Distributed (c10d), plus GEMM sweeps.
 ## Retained manual sources
 
 ### JAX QMC
@@ -86,11 +87,10 @@ python train.py --arch k3 --steps 1 --batch-size 1 --seq-len 32 \
   variant; the dependency-free GQA and full TP/FSDP variants are registered.
 - `tests/workloads/gemm/matmul_from_torch_xpu_ops.py` is a broad shape/backward
   profiling sweep. The two latest forward GEMM comparisons are registered.
-- `tests/workloads/torchcomms/allreduce.py` covers an alternate TorchComms API
-  call shape and intentionally requires a multi-rank `torchrun` launch.
-  `xccl_smoke.py` is the registered compatibility test, while
-  `perf/collective_perf_test.py` provides the registered bounded adapter
-  comparisons.
+- `tests/workloads/collectives/allreduce.py` covers a native c10d all-reduce and
+  intentionally requires a multi-rank `torchrun` launch. `xccl_smoke.py` is the
+  registered native XCCL compatibility test, and `perf/collective_perf_test.py`
+  provides the bounded c10d benchmark.
 - `tests/workloads/moe/tools/` contains PMIx, P2P, determinism, and all-reduce
   diagnostic payloads for specialized distributed launches.
 - `tests/regressions/ipex_pybind11/WA/` preserves the historical workaround

@@ -95,6 +95,6 @@ ctx.log("=> " + (
     "copy engines overlap with compute but compute kernels do not -- oneCCL moving data "
     "with compute kernels would fully explain bug 4" if g < 0.15 else
     "device overlaps independent streams fine -- the serialisation really is in the "
-    "comm stack, so torchcomms is worth trying"))
+    "comm stack, so compare alternative backends"))
 ctx.log("RESULT PASS")  # diagnostic: the scores are the output, there is nothing to fail
 dist.destroy_process_group()
