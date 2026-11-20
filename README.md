@@ -63,9 +63,9 @@ Suites are intentionally separated by cost and purpose:
 - `regression`: SDPA, JIT, vLLM, Gamma sampling, grouped-GEMM store, XCCL
   memory, FSDP libfabric memhooks shutdown (SIGSEGV), FSDP autograd callback
   shutdown (SIGABRT), and ModuleTracker interpreter shutdown (SIGABRT).
-- `workload`: bounded DDP/FSDP/1-D and 2-D DTensor, DeepSpeed, TorchComms,
+- `workload`: bounded DDP/FSDP/1-D and 2-D DTensor, DeepSpeed, native c10d/XCCL,
   sequence parallelism, MoE, and split CosmicTagger application tests.
-- `benchmark`: opt-in bounded TorchComms/c10d collectives and GEMM performance
+- `benchmark`: opt-in bounded native c10d collectives and GEMM performance
   experiments.
 
 Examples:

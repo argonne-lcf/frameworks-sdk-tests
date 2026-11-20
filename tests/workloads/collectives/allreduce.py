@@ -2,7 +2,7 @@
 import os
 import sys
 import torch
-import torchcomms
+import torch.distributed as dist
 
 
 def _iget(*names, default=None):
@@ -24,15 +24,12 @@ def main():
         "MPI_LOCALRANKID",
         default=rank,
     )
-    os.environ.setdefault("TORCHCOMM_RANK", str(rank))
-    os.environ.setdefault("TORCHCOMM_SIZE", str(world))
-    os.environ.setdefault("TORCHCOMM_LOCAL_RANK", str(local_rank))
     os.environ.setdefault("MASTER_ADDR", "127.0.0.1")
     os.environ.setdefault("MASTER_PORT", "29500")
 
     if world < 2:
         raise RuntimeError(
-            "TorchComms all-reduce requires at least two ranks; launch with torchrun"
+            "c10d all-reduce requires at least two ranks; launch with torchrun"
         )
 
     if not hasattr(torch, "xpu"):
@@ -45,19 +42,20 @@ def main():
         return 2
 
     dev = torch.device(f"xpu:{local_rank % ndev}")
+    torch.xpu.set_device(dev)
 
     print(f"[rank {rank}/{world} local {local_rank}] using {dev}", flush=True)
 
-    comm = None
+    initialized = False
     try:
-        comm = torchcomms.new_comm("xccl", dev, name="main_comm")
-        print(f"[rank {rank}] new_comm OK", flush=True)
+        dist.init_process_group(backend="xccl")
+        initialized = True
+        print(f"[rank {rank}] dist.init_process_group() OK", flush=True)
 
         # Each rank contributes (rank+1), so SUM should be 1+2+...+world
         x = torch.ones(1024, device=dev, dtype=torch.float32) * float(rank + 1)
 
-        # IMPORTANT: your torchcomms binding requires op + async_op explicitly
-        work = comm.all_reduce(x, torchcomms.ReduceOp.SUM, async_op=True)
+        work = dist.all_reduce(x, op=dist.ReduceOp.SUM, async_op=True)
         work.wait()
 
         expected = float(world * (world + 1) / 2)
@@ -81,9 +79,9 @@ def main():
         raise
 
     finally:
-        if comm is not None:
-            comm.finalize()
-            print(f"[rank {rank}] finalize OK", flush=True)
+        if initialized:
+            dist.destroy_process_group()
+            print(f"[rank {rank}] destroy_process_group() OK", flush=True)
 
 
 if __name__ == "__main__":

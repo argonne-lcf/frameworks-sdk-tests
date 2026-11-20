@@ -6,7 +6,6 @@ import sys
 from typing import Optional, Tuple
 
 import torch
-import torchcomms
 from all_gather_perf import run_all_gather_perf
 from all_gather_single_perf import run_all_gather_single_perf
 from all_reduce_perf import run_all_reduce_perf
@@ -108,22 +107,6 @@ def _bind_device_by_local_rank(device: torch.device) -> torch.device:
     return device
 
 
-def _normalize_torchrun_rank_env() -> None:
-    """Expose torchrun rank metadata under names consumed by TorchComms."""
-    aliases = {
-        "TORCHCOMM_RANK": "RANK",
-        "TORCHCOMM_SIZE": "WORLD_SIZE",
-        "TORCHCOMM_LOCAL_RANK": "LOCAL_RANK",
-        "TORCHCOMM_LOCAL_SIZE": "LOCAL_WORLD_SIZE",
-        "CCL_LOCAL_RANK": "LOCAL_RANK",
-        "CCL_LOCAL_SIZE": "LOCAL_WORLD_SIZE",
-    }
-    for destination, source in aliases.items():
-        value = os.environ.get(source)
-        if value is not None and value.strip() != "":
-            # The launcher values describe this child process; overwrite any
-            # stale parent-shell rank metadata inherited through the module.
-            os.environ[destination] = value
 
 
 VALUE_FLAGS = {
@@ -185,10 +168,6 @@ def parse_args(args: list) -> Tuple[BenchRecord, Optional[str]]:
             record.config.quiet = True
         elif arg == "--c10d":
             record.params.comm_adapter = "c10d"
-        elif arg == "--c10d-torchcomms":
-            record.params.comm_adapter = "c10d_torchcomms"
-        elif arg == "--all-comm-adapters":
-            record.config.run_all_comm_adapters = True
         elif not arg.startswith("-"):
             if arg == "all":
                 record.config.run_all_collectives = True
@@ -216,11 +195,7 @@ def run_collectives(
 
     if config.csv_enabled and rank == 0:
         if config.output_dir:
-            csv_dir = (
-                os.path.join(config.output_dir, record.info.comm_adapter_name)
-                if config.run_all_comm_adapters
-                else config.output_dir
-            )
+            csv_dir = config.output_dir
         else:
             csv_dir = record.info.comm_adapter_name
         os.makedirs(csv_dir, exist_ok=True)
@@ -280,13 +255,9 @@ def main() -> int:
         print(f"Run '{sys.argv[0]} --help' for usage.", file=sys.stderr)
         return 1
 
-    # torchrun provides the unprefixed variables. Native TorchComms/XCCL also
-    # consumes TORCHCOMM_* (and oneCCL consumes CCL_LOCAL_*), so normalize the
-    # per-rank environment in-process instead of relying on a site wrapper.
-    _normalize_torchrun_rank_env()
 
     device = torch.device(os.environ.get("TEST_DEVICE", "cuda"))
-    # Device selection must precede new_comm()/init_process_group(). Backends
+    # Device selection must precede init_process_group(). Backends
     # may capture the current device while constructing the communicator.
     device = _bind_device_by_local_rank(device)
 
@@ -295,14 +266,9 @@ def main() -> int:
         print("Error: TEST_BACKEND environment variable is not set", file=sys.stderr)
         return 1
 
-    hints = {}
-    fast_init_mode = os.environ.get("TEST_FAST_INIT_MODE")
-    if fast_init_mode:
-        hints["fastInitMode"] = fast_init_mode
 
     info = record.info
     params = record.params
-    config = record.config
 
     info.device_type = device.type
     if info.device_type == "xpu":
@@ -312,17 +278,8 @@ def main() -> int:
     else:
         info.device_name = "n/a"
 
-    # Some installed builds do not expose ``torchcomms.__version__``. Sites
-    # can provide a useful package/module label with TORCHCOMMS_BUILD_TAG.
-    torchcomms_version = getattr(torchcomms, "__version__", None)
-    if not torchcomms_version:
-        torchcomms_version = os.environ.get("TORCHCOMMS_BUILD_TAG", "unknown")
-    info.torchcomms_version = torchcomms_version
 
-    if config.run_all_comm_adapters:
-        adapters = ["torchcomms", "c10d", "c10d_torchcomms"]
-    else:
-        adapters = [params.comm_adapter]
+    adapters = ["c10d"]
 
     rank = 0
     for adapter_name in adapters:
@@ -330,7 +287,7 @@ def main() -> int:
         info.comm_adapter_name = adapter_name
 
         comm = CommAdapter(info.comm_adapter_name)
-        comm.init(test_backend, device, hints)
+        comm.init(test_backend, device)
         try:
             rank = comm.get_rank()
             num_ranks = comm.get_size()
@@ -347,14 +304,7 @@ def main() -> int:
                 print(f"Comm adapter: {adapter_name}")
                 if record.config.csv_enabled:
                     if record.config.output_dir:
-                        csv_path = (
-                            os.path.join(
-                                record.config.output_dir,
-                                record.info.comm_adapter_name,
-                            )
-                            if record.config.run_all_comm_adapters
-                            else record.config.output_dir
-                        )
+                        csv_path = record.config.output_dir
                     else:
                         csv_path = record.info.comm_adapter_name
                     print(f"CSV output: {csv_path}/")
