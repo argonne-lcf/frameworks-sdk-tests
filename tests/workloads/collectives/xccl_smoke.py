@@ -6,7 +6,7 @@ import datetime
 import traceback
 
 import torch
-import torchcomms
+import torch.distributed as dist
 
 
 def env_int(*names: str, default: int) -> int:
@@ -18,10 +18,7 @@ def env_int(*names: str, default: int) -> int:
 
 
 def work_wait(work):
-    """
-    TorchComms returns a TorchWork. Different builds expose different methods.
-    Try common ones.
-    """
+    """Wait for a c10d Work object, with a device-sync fallback."""
     for m in ("wait", "synchronize", "finish"):
         if hasattr(work, m):
             getattr(work, m)()
@@ -49,12 +46,9 @@ def main():
 
     if world < 2:
         raise RuntimeError(
-            "TorchComms validation requires at least two ranks; launch with torchrun"
+            "c10d validation requires at least two ranks; launch with torchrun"
         )
 
-    os.environ.setdefault("TORCHCOMM_RANK", str(rank))
-    os.environ.setdefault("TORCHCOMM_SIZE", str(world))
-    os.environ.setdefault("TORCHCOMM_LOCAL_RANK", str(local_rank))
     os.environ.setdefault("MASTER_ADDR", "127.0.0.1")
     os.environ.setdefault("MASTER_PORT", "29500")
 
@@ -79,29 +73,22 @@ def main():
         flush=True,
     )
 
-    # Load XCCL backend
-    torchcomms._load_backend("xccl")
-
-    comm = None
+    initialized = False
     exit_code = 0
     try:
-        print(f"[rank {rank}] entering new_comm()", flush=True)
-        comm = torchcomms.new_comm(
+        print(f"[rank {rank}] entering dist.init_process_group()", flush=True)
+        dist.init_process_group(
             backend="xccl",
-            device=device,
-            name="xccl_smoke",
             timeout=datetime.timedelta(seconds=120),
         )
-        print(f"[rank {rank}] new_comm() OK", flush=True)
+        initialized = True
+        print(f"[rank {rank}] dist.init_process_group() OK", flush=True)
 
         # Build a simple tensor: rank+1 replicated
         x = torch.ones(8, device=device, dtype=torch.float32) * float(rank + 1)
 
-        # The binding requires (tensor, op, async_op, ...)
-        # Use SUM + synchronous op (async_op=False)
-        op = torchcomms.ReduceOp.SUM
-        work = comm.all_reduce(x, op, False)
-        work_wait(work)
+        work = dist.all_reduce(x, op=dist.ReduceOp.SUM, async_op=True)
+        work.wait()
 
         torch.xpu.synchronize()
 
@@ -123,12 +110,12 @@ def main():
         traceback.print_exc()
         exit_code = 1
     finally:
-        if comm is not None:
+        if initialized:
             try:
-                comm.finalize()
-                print(f"[rank {rank}] finalize() OK", flush=True)
+                dist.destroy_process_group()
+                print(f"[rank {rank}] destroy_process_group() OK", flush=True)
             except Exception as e:
-                print(f"[rank {rank}] finalize() failed: {e}", flush=True)
+                print(f"[rank {rank}] destroy_process_group() failed: {e}", flush=True)
                 traceback.print_exc()
                 exit_code = 1
 

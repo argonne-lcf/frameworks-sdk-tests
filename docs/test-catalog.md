@@ -23,7 +23,7 @@ The descriptions below focus on what each test validates or reproduces.
 | `smoke` | `dpnp-torch-dlpack` | PyTorch/dpnp DLPack sharing |
 | `optional-imports` | `imports-science` | NumPy, SciPy, h5py, scikit-learn, JAX, and TensorFlow imports |
 | `optional-imports` | `imports-llm` | DeepSpeed, Transformers, Triton, vLLM, and vLLM XPU kernel imports |
-| `optional-imports` | `imports-comms` | oneCCL PyTorch bindings and TorchComms imports |
+| `optional-imports` | `imports-comms` | oneCCL PyTorch bindings import |
 | `optional-imports` | `imports-intel-extension` | Legacy Intel Extension for PyTorch import |
 | `harness` | `collectives-cpu` | Collective-validator correctness on CPU/gloo |
 | `harness` | `collectives-pals-env-cpu` | Collective validation through PALS-style environment variables |
@@ -68,7 +68,7 @@ The descriptions below focus on what each test validates or reproduces.
 | `workload` | `workload-transformer-ddp` | Bounded Transformer DDP training |
 | `workload` | `workload-minigpt-deepspeed` | Bounded DeepSpeed miniGPT training |
 | `workload` | `workload-sequence-parallelism` | XPU sequence-parallel compute pattern |
-| `workload` | `workload-torchcomms-xccl` | TorchComms/XCCL compatibility |
+| `workload` | `workload-c10d-xccl` | Native c10d/XCCL compatibility |
 | `workload` | `workload-moe-reference-pytest` | MoE pytest cases against the CPU reference implementation |
 | `workload` | `workload-moe-triton-xpu-pytest` | MoE Triton-required and XPU pytest cases |
 | `workload` | `workload-moe-train-xpu` | Bounded single-XPU MoE training with loss, gradient, and parameter-update checks |
@@ -79,9 +79,7 @@ The descriptions below focus on what each test validates or reproduces.
 | `workload` | `workload-cosmictagger-tensorflow-synthetic` | CosmicTagger TensorFlow synthetic-data training and inference |
 | `workload` | `workload-cosmictagger-tensorflow-larcv` | CosmicTagger TensorFlow LArCV-data training and inference |
 | `workload` | `workload-cosmictagger-network-parity` | CosmicTagger network creation and PyTorch/TensorFlow parity |
-| `benchmark` | `benchmark-torchcomms-perf` | Bounded two-rank TorchComms all-reduce measurements |
 | `benchmark` | `benchmark-c10d-perf` | Bounded two-rank c10d all-reduce measurements |
-| `benchmark` | `benchmark-c10d-torchcomms-perf` | Bounded two-rank c10d-through-TorchComms all-reduce measurements |
 | `benchmark` | `benchmark-gemm-torch` | PyTorch forward GEMM comparison |
 | `benchmark` | `benchmark-gemm-eleutherai` | EleutherAI forward GEMM comparison |
 
@@ -143,11 +141,10 @@ python train.py --arch k3 --steps 1 --batch-size 1 --seq-len 32 \
   variant; the dependency-free GQA and full TP/FSDP variants are registered.
 - `tests/workloads/gemm/matmul_from_torch_xpu_ops.py` is a broad shape/backward
   profiling sweep. The two latest forward GEMM comparisons are registered.
-- `tests/workloads/torchcomms/allreduce.py` covers an alternate TorchComms API
-  call shape and intentionally requires a multi-rank `torchrun` launch.
-  `xccl_smoke.py` is the registered compatibility test, while
-  `perf/collective_perf_test.py` provides the registered bounded adapter
-  comparisons.
+- `tests/workloads/collectives/allreduce.py` covers a native c10d all-reduce and
+  intentionally requires a multi-rank `torchrun` launch. `xccl_smoke.py` is the
+  registered native XCCL compatibility test, and `perf/collective_perf_test.py`
+  provides the bounded c10d benchmark.
 - `tests/workloads/moe/tools/` contains PMIx, P2P, determinism, and all-reduce
   diagnostic payloads for specialized distributed launches.
 - `tests/regressions/ipex_pybind11/WA/` preserves the historical workaround
